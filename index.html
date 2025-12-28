@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arnaut Network Intelligence Graph</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        #network {
+            width: 100vw;
+            height: 100vh;
+        }
+        #sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: rgba(15, 15, 25, 0.95);
+            border-left: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        #sidebar.open {
+            transform: translateX(0);
+        }
+        #sidebar h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        #sidebar .field {
+            margin-bottom: 12px;
+        }
+        #sidebar .label {
+            color: #888;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+        #sidebar .value {
+            color: #fff;
+            font-size: 1em;
+            word-break: break-all;
+        }
+        #sidebar .value.compromised {
+            color: #ff4444;
+        }
+        #sidebar .value.clean {
+            color: #44ff44;
+        }
+        #sidebar .value.warning {
+            color: #ffaa00;
+        }
+        #sidebar .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        #sidebar .close-btn:hover {
+            color: #fff;
+        }
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 15, 25, 0.9);
+            padding: 15px 25px;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+        #header h1 {
+            color: #00d4ff;
+            font-size: 1.5em;
+            font-weight: 300;
+        }
+        #header .subtitle {
+            color: #666;
+            font-size: 0.85em;
+        }
+        #legend {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 15, 25, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            z-index: 100;
+        }
+        #legend h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        #legend .item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.8em;
+        }
+        #legend .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        #controls {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            background: rgba(15, 15, 25, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            z-index: 100;
+        }
+        #controls button {
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            margin-bottom: 8px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        #controls button:hover {
+            background: #2a2a4e;
+            border-color: #00d4ff;
+        }
+        #controls button:last-child {
+            margin-bottom: 0;
+        }
+        #stats {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(15, 15, 25, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            z-index: 100;
+            font-size: 0.85em;
+        }
+        #stats .stat {
+            margin-bottom: 8px;
+        }
+        #stats .stat-value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        #search {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
+        #search input {
+            width: 300px;
+            padding: 10px 15px;
+            background: rgba(15, 15, 25, 0.9);
+            border: 1px solid #333;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 0.9em;
+        }
+        #search input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        #search input::placeholder {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>ARNAUT NETWORK INTELLIGENCE GRAPH</h1>
+        <div class="subtitle">Sacrameto Journalist Investigation | Network Analysis | Last Updated: 2025-12-28</div>
+    </div>
+
+    <div id="search">
+        <input type="text" id="searchInput" placeholder="Search nodes... (name, business, location)">
+    </div>
+
+    <div id="controls">
+        <button onclick="filterByGroup('all')">Show All</button>
+        <button onclick="filterByGroup('arnaut')">Arnaut Family</button>
+        <button onclick="filterByGroup('shcherbak')">Shcherbak/Pasyuk</button>
+        <button onclick="filterByGroup('business')">Businesses</button>
+        <button onclick="filterByGroup('florida')">Florida Ops</button>
+        <button onclick="filterByGroup('vendor')">Tech/Vendors</button>
+        <button onclick="filterByGroup('staff')">Staff</button>
+        <button onclick="filterByGroup('breach')">Breaches</button>
+        <button onclick="filterByGroup('breached')">Breached Accounts</button>
+        <button onclick="resetView()">Reset View</button>
+    </div>
+
+    <div id="stats">
+        <div class="stat">Nodes: <span class="stat-value" id="nodeCount">0</span></div>
+        <div class="stat">Edges: <span class="stat-value" id="edgeCount">0</span></div>
+        <div class="stat">Breached: <span class="stat-value" id="breachedCount">0</span></div>
+    </div>
+
+    <div id="legend">
+        <h3>NODE TYPES</h3>
+        <div class="item"><div class="dot" style="background: #ff4444;"></div> Target (Vitaliy)</div>
+        <div class="item"><div class="dot" style="background: #ff8844;"></div> Arnaut Family</div>
+        <div class="item"><div class="dot" style="background: #44aaff;"></div> Shcherbak/Pasyuk</div>
+        <div class="item"><div class="dot" style="background: #44ff44;"></div> Business Entity</div>
+        <div class="item"><div class="dot" style="background: #aa44ff;"></div> Florida Operations</div>
+        <div class="item"><div class="dot" style="background: #ffff44;"></div> External Contact</div>
+        <div class="item"><div class="dot" style="background: #888;"></div> Location</div>
+        <div class="item"><div class="dot" style="background: #00ffff;"></div> Vendor/Technology</div>
+        <div class="item"><div class="dot" style="background: #ff6600;"></div> Repo Contractor</div>
+        <div class="item"><div class="dot" style="background: #66aa66;"></div> Staff Member</div>
+        <div class="item"><div class="dot" style="background: #ffaaff;"></div> Church/Community</div>
+        <div class="item"><div class="dot" style="background: #ff44ff;"></div> Online Account</div>
+        <div class="item"><div class="dot" style="background: #ff0000;"></div> Data Breach</div>
+        <div class="item"><div class="dot" style="background: #ffcc00;"></div> Evidence (Fraud)</div>
+        <div class="item"><div class="dot" style="background: #4488ff;"></div> Regulatory Agency</div>
+    </div>
+
+    <div id="network"></div>
+
+    <div id="sidebar">
+        <button class="close-btn" onclick="closeSidebar()">&times;</button>
+        <div id="sidebarContent"></div>
+    </div>
+
+    <script>
+        // Node and Edge Data
+        const nodes = new vis.DataSet([
+            // === PRIMARY TARGET ===
+            { id: 'vitaliy', label: 'VITALIY\nARNAUT', group: 'target',
+              title: 'CEO - Primary Target',
+              data: {
+                  role: 'CEO / Primary Target',
+                  age: '40',
+                  dob: 'January 14, 1985',
+                  phone: '(916) 607-9815',
+                  email: 'va@integrityautoz.com',
+                  address: '6032 Palermo Way, Roseville, CA',
+                  instagram: '@vitaliyarnaut',
+                  okru: 'https://ok.ru/profile/266108263847',
+                  breaches: 'ALIEN TXTBASE, AT&T',
+                  passwords: 'Integrity3655'
+              }},
+
+            // === ARNAUT PARENTS ===
+            { id: 'mikhail', label: 'Mikhail\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Father / Patriarch',
+                  age: '60',
+                  phone: '(916) 388-4212',
+                  email: 'mykhayloarnaut@yahoo.com',
+                  okru: 'https://ok.ru/profile/185183629945 (298 friends)'
+              }},
+            { id: 'tetyana', label: 'Tetyana\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Mother',
+                  location: 'Sacramento, CA'
+              }},
+
+            // === ARNAUT SIBLINGS ===
+            { id: 'irina', label: 'Irina\nKisel', group: 'arnaut',
+              data: {
+                  role: 'Eldest Sibling',
+                  age: '41',
+                  phone: '(916) 224-9243',
+                  location: 'Roseville, CA',
+                  married: 'Kisel family'
+              }},
+            { id: 'vladyslav', label: 'Vladyslav\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Secretary / Corp Admin',
+                  age: '~38',
+                  email: 'vladarnaut@gmail.com',
+                  location: 'Loomis, CA',
+                  instagram: '@vladarnaut',
+                  passwords: '3655Florinrd, sims1905'
+              }},
+            { id: 'oleksandr', label: 'Oleksandr\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Unknown',
+                  age: '38',
+                  dob: 'July 1987',
+                  phone: '(916) 307-2941',
+                  email: 'alexanderarnaut32@gmail.com',
+                  location: 'Sacramento / Tempe, AZ'
+              }},
+            { id: 'yevgen', label: 'Yevgen\nArnaut', group: 'florida',
+              data: {
+                  role: 'DriveHub Owner',
+                  age: '35',
+                  location: 'Florida',
+                  business: 'DriveHub Auto Inc (BANKRUPT - Case 6:25-bk-00594)'
+              }},
+            { id: 'petro', label: 'Petro\nArnaut', group: 'florida',
+              data: {
+                  role: 'DriveHub Employee',
+                  age: '~33',
+                  phone: '(407) 491-8123, (916) 516-3713',
+                  email: 'pparnaut91@gmail.com',
+                  location: 'Orlando, FL',
+                  breaches: 'Prosper, Synthient Stealer, ALIEN TXTBASE'
+              }},
+            { id: 'iolanta', label: 'Iolanta\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Ministry Secretary',
+                  age: '30',
+                  dob: 'October 1994',
+                  phone: '(916) 770-0494',
+                  email: 'iolantakruglyak@gmail.com',
+                  employer: 'Ministry Ray of Hope Sacramento',
+                  married: 'Kruglyak family'
+              }},
+
+            // === UNCLE PETER BRANCH ===
+            { id: 'peter_uncle', label: 'Peter P\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Uncle',
+                  age: '63',
+                  phone: '(916) 799-2996',
+                  email: 'parnaut@excite.com',
+                  location: 'Roseville, CA',
+                  business: 'KUBMO LLC',
+                  okru: 'https://ok.ru/profile/154232335813'
+              }},
+            { id: 'denis', label: 'Denis\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Cousin (Peter\'s son)',
+                  age: '36',
+                  business: 'Revvo Trading LLC',
+                  location: 'Roseville, CA'
+              }},
+            { id: 'david', label: 'David\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Cousin (Peter\'s son)',
+                  business: 'Royal Supply International LLC',
+                  location: 'Roseville, CA'
+              }},
+
+            // === SHCHERBAK FAMILY ===
+            { id: 'vladimir', label: 'Vladimir\nShcherbak', group: 'shcherbak',
+              data: {
+                  role: 'GPS ADMIN + Impera Design Co',
+                  age: '~35',
+                  phone: '(916) 973-8611',
+                  email: 'vladimir@integrityautoz.com',
+                  email2: 'vladimir@imperadesignco.com',
+                  formerAddress: '4777 Bucknell Ct, Sacramento',
+                  currentAddress: 'UNKNOWN (moved Jul 2025)'
+              }},
+            { id: 'vera', label: 'Vera L\nShcherbak', group: 'shcherbak',
+              data: {
+                  role: 'Vladimir\'s Mother (née Pasyuk)',
+                  age: '58',
+                  phone: '(916) 759-6944, (916) 317-9484',
+                  location: 'Sacramento, CA',
+                  note: 'Links Shcherbak to Pasyuk family'
+              }},
+            { id: 'maia', label: 'Maia\nShcherbak', group: 'shcherbak',
+              data: {
+                  role: 'Vladimir\'s Sister',
+                  age: '34',
+                  phone: '(916) 501-9641',
+                  location: 'Rocklin, CA',
+                  note: 'Lived with Vladimir at 4777 Bucknell Ct (2014-2024)'
+              }},
+            { id: 'marina', label: 'Marina\nStefoglo', group: 'shcherbak',
+              data: {
+                  role: 'Vladimir\'s Sister',
+                  age: '36',
+                  email: 'marinastefoglo@gmail.com',
+                  location: 'Sacramento, CA',
+                  married: 'Ilya Stefoglo'
+              }},
+
+            // === PASYUK FAMILY (FLORIDA) ===
+            { id: 'dmitry', label: 'Dmitry\nPasyuk', group: 'florida',
+              data: {
+                  role: 'Prestige Auto Owner (CLOSED)',
+                  age: '41',
+                  phone: '941-408-4199',
+                  email: 'dmitry_pasyuk@yahoo.com',
+                  location: 'North Port, FL',
+                  business: 'Prestige Auto of South Florida',
+                  businessStatus: 'CLOSED (2024)',
+                  flLicense: 'NOT IN DATABASE',
+                  ripoffReport: '2015 - BMW $28K fraud (resolved 2018)',
+                  sunbiz: 'PASYUK DESIGN LLC (active)'
+              }},
+            { id: 'valentina_p', label: 'Valentina\nPasyuk', group: 'shcherbak',
+              data: {
+                  role: 'Pasyuk Family - FL',
+                  age: '61',
+                  location: 'North Port, FL'
+              }},
+            { id: 'sergey_p', label: 'Sergey\nPasyuk', group: 'shcherbak',
+              data: {
+                  role: 'Pasyuk Family - FL',
+                  age: '40',
+                  location: 'North Port, FL'
+              }},
+
+            // === BUSINESSES ===
+            { id: 'integrity', label: 'INTEGRITY\nAUTO SALES', group: 'business',
+              data: {
+                  type: 'Used Car Dealership',
+                  address: '3655 Florin Rd, Sacramento, CA 95823',
+                  phone: '(916) 392-0800',
+                  dmvLicense: '#82235',
+                  bbbRating: 'F (32+ complaints)',
+                  employees: '~11',
+                  revenue: '~$2M annual',
+                  gpsVehicles: '3,193'
+              }},
+            { id: 'lumin', label: 'Lumin\nFisker', group: 'business',
+              data: {
+                  type: 'Luxury Auto Dealer',
+                  address: '12565 Auto Mall Cir, Folsom, CA',
+                  phone: '(916) 415-8205',
+                  inventory: '~93 vehicles',
+                  note: 'Legitimacy front'
+              }},
+            { id: 'impera', label: 'Impera\nDesign Co', group: 'business',
+              data: {
+                  type: 'SHELL COMPANY',
+                  website: 'imperadesignco.com',
+                  owner: 'Vladimir Shcherbak',
+                  pppLoan: '$15,307 (March 2021)',
+                  purpose: 'Invoice pass-through, tax write-offs'
+              }},
+            { id: 'drivehub', label: 'DriveHub\nAuto Inc', group: 'florida',
+              data: {
+                  type: 'Used Car Dealer (FL)',
+                  address: '1300 N Dixie Fwy, New Smyrna Beach, FL',
+                  officers: 'Yevgen Arnaut, Petro Arnaut',
+                  bankruptcy: 'CHAPTER 11 (Case 6:25-bk-00594)',
+                  liabilities: '$1-10M',
+                  bbbRating: 'F (3 unanswered complaints)'
+              }},
+            { id: 'lumin_fl', label: 'Lumin Auto Group\n(Jacksonville FL)', group: 'florida',
+              data: {
+                  type: 'Used Car Dealer (FL) - FAILED',
+                  address: '7721 Blanding Blvd, Jacksonville, FL',
+                  partners: 'Vitaliy Arnaut + Yevgeniy Nesteruk',
+                  withdrawn: 'January 2023',
+                  note: 'Failed FL venture - Nesteruk now disgruntled'
+              }},
+            { id: 'prestige', label: 'Prestige Auto\n(CLOSED)', group: 'florida',
+              data: {
+                  type: 'Used Car Dealer (FL) - CLOSED',
+                  address: '1878 Winslow Ln, North Port, FL',
+                  owner: 'Dmitry Pasyuk',
+                  active: '2012-2024',
+                  bbbRating: 'A+ (historical)',
+                  note: 'Website offline, not in FL license database'
+              }},
+
+            // === KEY EXTERNAL CONTACTS ===
+            { id: 'kristy', label: 'Kristy\nDewit', group: 'external',
+              data: {
+                  role: 'GEICO SIU Investigator (Former)',
+                  currentJob: 'Sentry Insurance - Special Investigator',
+                  geicoTenure: 'Feb 2019 - Jun 2025',
+                  phone: '(916) 471-8407, (916) 207-6749',
+                  email: 'kdewit@geico.com, kristydewit@yahoo.com',
+                  education: 'BS Criminal Justice, CSU Sacramento',
+                  conflict: 'Had REPO access in GPS system',
+              }},
+            { id: 'nesteruk', label: 'Yevgeniy\nNesteruk', group: 'external',
+              data: {
+                  role: 'Disgruntled Partner',
+                  email: 'yevgeniynesteruk@gmail.com',
+                  note: 'Failed FL venture with Arnauts'
+              }},
+            { id: 'anatoliy', label: 'Anatoliy\nArnaut', group: 'arnaut',
+              data: {
+                  role: 'Extended Family',
+                  age: '~48',
+                  phone: '(916) 367-2988',
+                  email: 'arnautflooring@gmail.com',
+                  location: 'Placerville, CA',
+                  business: 'ECO HOMES INC',
+                  vk: 'id235424570'
+              }},
+
+            // === LOCATIONS ===
+            { id: 'sacramento', label: 'Sacramento\nCA', group: 'location',
+              data: { type: 'Primary Operations Hub' }},
+            { id: 'florida', label: 'Florida\nOperations', group: 'location',
+              data: { type: 'FL Pipeline (Now Defunct)', note: 'DriveHub + Prestige Auto both closed' }},
+
+            // === CONNECTED FAMILIES ===
+            { id: 'taushanzhi', label: 'Taushanzhi\nFamily', group: 'external',
+              data: {
+                  role: 'Connected via Marriage',
+                  key: 'Valentina P Taushanzhi (66) - Arnaut aunt',
+                  husband: 'Afanasiy I Taushanzhi (67)',
+                  location: 'Sedalia, MO'
+              }},
+            { id: 'tsiorba', label: 'Tsiorba\nFamily', group: 'external',
+              data: {
+                  role: 'Connected via Anatoliy',
+                  location: 'Fair Oaks / Placerville, CA'
+              }},
+
+            // === TECHNOLOGY / VENDORS ===
+            { id: 'advantagegps', label: 'AdvantageGPS', group: 'vendor',
+              data: {
+                  type: 'GPS Tracking Platform',
+                  website: 'dealer.advantagegps.com',
+                  vulnerability: 'UNAUTHENTICATED API',
+                  exposedEndpoints: '/asset/list, /user/list',
+                  dataExposed: '3,193 vehicles, 29 users, customer PII',
+                  remoteDisable: 'YES (FSTE feature)'
+              }},
+            { id: 'westlake', label: 'Westlake\nFinancial', group: 'vendor',
+              data: {
+                  type: 'Subprime Auto Lender',
+                  cfpbFine: '$44.1M Settlement (2016)',
+                  dojAction: '$700K+ SCRA (2017)',
+                  violations: 'Illegal collection, caller ID spoofing',
+                  relationship: 'Primary financing partner'
+              }},
+
+            // === REPO CONTRACTORS ===
+            { id: 'master_recovery', label: 'Master\nRecovery', group: 'repo',
+              data: {
+                  type: 'Repo Contractor',
+                  owner: 'Francisco Gonzalez',
+                  email: 'master_recovery1601@yahoo.com',
+                  role: 'GPS REPO access',
+                  note: 'External repo company'
+              }},
+            { id: 'luis_flores', label: 'Luis\nFlores', group: 'repo',
+              data: {
+                  role: 'Repo Contractor',
+                  email: 'lflores2468@gmail.com',
+                  gpsRole: 'REPO'
+              }},
+
+            // === STAFF MEMBERS ===
+            { id: 'edwin', label: 'Edwin\nFlores', group: 'staff',
+              data: {
+                  role: 'Staff - GPS Admin',
+                  email: 'edwin@integrityautoz.com',
+                  gpsRole: 'ADMIN'
+              }},
+            { id: 'joe', label: 'Joe\nGonzalez', group: 'staff',
+              data: {
+                  role: 'Staff - GPS Admin',
+                  email: 'joe@integrityautoz.com',
+                  gpsRole: 'ADMIN'
+              }},
+            { id: 'thuraya', label: 'Thuraya\nAl-Janabi', group: 'staff',
+              data: {
+                  role: 'Account Manager',
+                  email: 'thuraya@integrityautoz.com',
+                  gpsRole: 'ACCT_MGR'
+              }},
+            { id: 'monika', label: 'Monika\nFlores', group: 'staff',
+              data: {
+                  role: 'Account Manager',
+                  email: 'monika@integrityautoz.com',
+                  gpsRole: 'ACCT_MGR'
+              }},
+
+            // === COMMUNITY / CHURCH ===
+            { id: 'slavic_trinity', label: 'Slavic Trinity\nChurch', group: 'community',
+              data: {
+                  type: 'Pentecostal Megachurch',
+                  address: '5341 Auburn Blvd, Sacramento',
+                  pastor: 'Victor Vronskiy',
+                  phone: '(916) 334-1205',
+                  established: '1944',
+                  note: 'Community hub for local Slavic population',
+                  services: 'Russian/Ukrainian (English translators)'
+              }},
+            { id: 'ray_of_hope', label: 'Ministry\nRay of Hope', group: 'community',
+              data: {
+                  type: 'Religious Organization',
+                  connection: 'Iolanta Arnaut works as Secretary'
+              }},
+
+            // === NETWORK CONTACTS ===
+            { id: 'pavel_s', label: 'Pavel\nShcherbatyuk', group: 'external',
+              data: {
+                  role: 'Network Contact (NOT family)',
+                  age: '40',
+                  employer: 'Visions in Education',
+                  email: 'pavelgt7@gmail.com, psh@viedu.org',
+                  email2: 'tashkent86@hotmail.com (Uzbekistan!)',
+                  location: 'Sacramento, CA',
+                  connection: 'Via Taushanzhi family'
+              }},
+            { id: 'nikolay_p', label: 'Nikolay\nPasyuk', group: 'shcherbak',
+              data: {
+                  role: 'Vera\'s Husband? Father?',
+                  age: '65',
+                  location: 'Boiling Springs, SC'
+              }},
+            { id: 'mariya_p', label: 'Mariya I\nPasyuk', group: 'shcherbak',
+              data: {
+                  role: 'Pasyuk Family - FL',
+                  age: '64',
+                  location: 'North Port, FL'
+              }},
+
+            // === ADDITIONAL BUSINESSES ===
+            { id: 'ryan_ryan', label: 'Ryan & Ryan\nInc', group: 'business',
+              data: {
+                  type: 'Auto Dealer',
+                  owner: 'Yevgen Arnaut',
+                  license: '#83285?'
+              }},
+            { id: 'kubmo', label: 'KUBMO\nLLC', group: 'business',
+              data: {
+                  type: 'Business Entity',
+                  owner: 'Peter P Arnaut (Uncle)',
+                  location: 'Roseville, CA'
+              }},
+            { id: 'revvo', label: 'Revvo\nTrading LLC', group: 'business',
+              data: {
+                  type: 'Trading Company',
+                  owner: 'Denis Arnaut',
+                  location: 'Roseville, CA'
+              }},
+            { id: 'royal_supply', label: 'Royal Supply\nIntl LLC', group: 'business',
+              data: {
+                  type: 'Supply Company',
+                  owner: 'David Arnaut',
+                  location: 'Roseville, CA'
+              }},
+            { id: 'eco_homes', label: 'ECO HOMES\nINC', group: 'business',
+              data: {
+                  type: 'Home Services',
+                  owner: 'Anatoliy Arnaut',
+                  location: 'Placerville, CA'
+              }},
+            { id: 'pasyuk_design', label: 'PASYUK\nDESIGN LLC', group: 'business',
+              data: {
+                  type: 'Design Company',
+                  owner: 'Dmitry Pasyuk',
+                  address: '4313 La Rosa Ave, North Port, FL',
+                  ein: '93-2112415',
+                  filed: '06/28/2023'
+              }},
+
+            // === ONLINE ACCOUNTS ===
+            { id: 'ebay_vav', label: 'eBay\nvavautosales', group: 'online',
+              data: {
+                  type: 'eBay Account',
+                  username: 'vavautosales',
+                  memberSince: 'January 2010',
+                  transactions: '3,662',
+                  role: 'BUYER (parts/vehicles sourcing)',
+                  phone: '(916) 662-4283',
+                  email: 'integrity.shop@yahoo.com',
+                  breaches: '5 confirmed',
+                  lastActivity: 'Dormant (0 in 12 months)'
+              }},
+            { id: 'amazon_seller', label: 'Amazon\nSeller', group: 'online',
+              data: {
+                  type: 'Amazon Marketplace',
+                  owner: 'Vladyslav Arnaut',
+                  sellerId: '3xr83hknw7ssbkr',
+                  address: '3655 Florin Rd'
+              }},
+
+            // === ADDITIONAL LOCATIONS ===
+            { id: 'auburn_blvd', label: 'Auburn Blvd\nCorridor', group: 'location',
+              data: {
+                  type: 'Slavic Business Corridor',
+                  range: '4777-5341 Auburn Blvd',
+                  includes: 'Integrity Auto 2nd location, Slavic Trinity Church',
+                  note: 'Strategic placement near immigrant community'
+              }},
+            { id: 'florin_rd', label: '3655 Florin Rd\nHQ', group: 'location',
+              data: {
+                  type: 'Primary Dealership',
+                  tenant: 'Integrity Auto Sales',
+                  previousTenants: 'Sacramento Hyundai, Senator Hyundai'
+              }},
+
+            // === BREACH / COMPROMISE SOURCES ===
+            { id: 'alien_txtbase', label: 'ALIEN\nTXTBASE', group: 'breach',
+              data: {
+                  type: 'Stealer Log Breach',
+                  date: 'February 2025',
+                  records: '284M',
+                  dataExposed: 'Emails, PASSWORDS',
+                  affectedAccounts: 'va@, vladarnaut@, pparnaut91@'
+              }},
+            { id: 'att_breach', label: 'AT&T\nBreach', group: 'breach',
+              data: {
+                  type: 'Telecom Data Breach',
+                  dataExposed: 'Phone, Address, Account info',
+                  affectedAccounts: 'lg.integrityauto@gmail.com, Vladimir Shcherbak'
+              }},
+            { id: 'prosper_breach', label: 'Prosper\nBreach', group: 'breach',
+              data: {
+                  type: 'Financial Services Breach',
+                  date: 'September 2025',
+                  records: '17.6M',
+                  dataExposed: 'DOB, Address, Gov IDs, Credit, Income, Employment',
+                  affectedAccounts: 'pparnaut91@gmail.com (Petro)'
+              }},
+
+            // === ADDITIONAL REPO CONTRACTORS ===
+            { id: 'sergey_k', label: 'Sergey\nKrasnikov', group: 'repo',
+              data: {
+                  role: 'Repo Contractor (Slavic)',
+                  email: 'sergteam66@gmail.com',
+                  phone: '(916) 642-3735',
+                  location: 'Rocklin, CA',
+                  note: 'Eastern European heritage, trusted network'
+              }},
+            { id: 'rogelio_a', label: 'Rogelio\nAlvarado', group: 'repo',
+              data: {
+                  role: 'Repo Contractor',
+                  email: 'alvaradohndz24@gmail.com',
+                  phone: '(209) 641-2427',
+                  location: 'Stockton, CA',
+                  coverage: 'San Joaquin Valley'
+              }},
+            { id: 'joseph_c', label: 'Joseph\nCatello', group: 'repo',
+              data: {
+                  role: 'Repo Contractor + Tile Business',
+                  email: 'joecatello@gmail.com',
+                  phone: '(916) 825-8557',
+                  location: 'Rancho Cordova, CA',
+                  business: 'Joe Catello Tile Inc',
+                  note: 'Dual income - tile + repo'
+              }},
+            { id: 'luis_deleon', label: 'Luis\nDe Leon', group: 'repo',
+              data: {
+                  role: 'Repo Contractor',
+                  email: 'luisjrdeleon@yahoo.com',
+                  phone: '(925) 997-9517',
+                  location: 'East Bay (Contra Costa)',
+                  note: 'Yahoo email = likely breached (2013)'
+              }},
+            { id: 'ryan_oneil', label: 'Ryan\nONeil', group: 'repo',
+              data: {
+                  role: 'Repo Contractor',
+                  email: 'roccourt@gmail.com',
+                  phone: '(831) 345-0979',
+                  location: 'Monterey Bay',
+                  coverage: 'Monterey, Santa Cruz, Salinas'
+              }},
+            { id: 'narinder_s', label: 'Narinder\nSingh', group: 'repo',
+              data: {
+                  role: 'Repo Contractor + Business Broker',
+                  email: 'narinder17maan@gmail.com',
+                  phone: '(916) 588-8073',
+                  location: 'Sacramento, CA',
+                  business: 'Nationwide Homes & Lending',
+                  dreLicense: '#01719546'
+              }},
+
+            // === EVIDENCE / FRAUD ===
+            { id: 'ferrari_812', label: 'Ferrari 812\nFlood Car', group: 'evidence',
+              data: {
+                  type: 'CONFIRMED FLOOD VEHICLE',
+                  vin: 'ZFF83CLA3K0247114',
+                  year: '2019',
+                  msrp: '~$340,000',
+                  lossDate: 'September 18, 2022',
+                  cause: 'Hurricane Ian FLOOD',
+                  source: 'Copart Miami South (Dec 2022)',
+                  nicbStatus: 'SALVAGE RECORD CONFIRMED'
+              }},
+            { id: 'copart', label: 'Copart\nMiami South', group: 'vendor',
+              data: {
+                  type: 'Salvage Auction',
+                  role: 'Flood vehicle sourcing',
+                  location: 'Miami, FL',
+                  note: 'Where Ferrari 812 was purchased'
+              }},
+
+            // === REGULATORY AGENCIES ===
+            { id: 'nicb', label: 'NICB', group: 'agency',
+              data: {
+                  type: 'National Insurance Crime Bureau',
+                  role: 'VINCheck database',
+                  finding: 'Confirmed Ferrari 812 flood status',
+                  website: 'nicb.org'
+              }},
+            { id: 'ca_dmv', label: 'CA DMV', group: 'agency',
+              data: {
+                  type: 'Regulatory Agency',
+                  role: 'Dealer licensing',
+                  integrityLicense: '#82235',
+                  pendingAction: 'Misdemeanor investigation'
+              }},
+            { id: 'bsis', label: 'CA BSIS', group: 'agency',
+              data: {
+                  type: 'Bureau of Security & Investigative Services',
+                  role: 'Repo agent licensing',
+                  note: 'No contractors verified licensed'
+              }},
+
+            // === ADDITIONAL BREACHES ===
+            { id: 'synthient', label: 'Synthient\nStealer', group: 'breach',
+              data: {
+                  type: 'Stealer Log Breach',
+                  date: '2025',
+                  records: '183M',
+                  dataExposed: 'Email, PASSWORDS',
+                  affectedAccounts: 'pparnaut91@gmail.com'
+              }},
+            { id: 'houzz', label: 'Houzz.com\nBreach', group: 'breach',
+              data: {
+                  type: 'Home Design Platform Breach',
+                  date: '2019',
+                  dataExposed: 'Email, passwords, IP, location',
+                  affectedAccounts: 'Vitaliy Arnaut'
+              }},
+            { id: 'pdl_breach', label: 'PDL Data\nEnrichment', group: 'breach',
+              data: {
+                  type: 'Data Enrichment Breach',
+                  date: 'October 2019',
+                  records: '600M+',
+                  dataExposed: 'Full PII, employment, social profiles',
+                  note: 'master_recovery1601@yahoo.com exposed'
+              }}
+        ]);
+
+        // Edges (Relationships)
+        const edges = new vis.DataSet([
+            // Family Structure
+            { from: 'mikhail', to: 'tetyana', label: 'married', color: '#ff8844' },
+            { from: 'mikhail', to: 'vitaliy', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'vladyslav', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'oleksandr', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'yevgen', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'petro', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'iolanta', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'irina', label: 'father', color: '#ff8844' },
+            { from: 'mikhail', to: 'peter_uncle', label: 'brother', color: '#ff8844', dashes: true },
+
+            // Uncle Peter's branch
+            { from: 'peter_uncle', to: 'denis', label: 'father', color: '#ff8844' },
+            { from: 'peter_uncle', to: 'david', label: 'father', color: '#ff8844' },
+
+            // Sibling relationships
+            { from: 'vitaliy', to: 'vladyslav', label: 'brother', color: '#ff8844', dashes: true },
+            { from: 'vitaliy', to: 'yevgen', label: 'brother', color: '#ff8844', dashes: true },
+            { from: 'yevgen', to: 'petro', label: 'brother', color: '#ff8844', dashes: true },
+
+            // Business ownership
+            { from: 'vitaliy', to: 'integrity', label: 'CEO', color: '#44ff44', width: 3 },
+            { from: 'vitaliy', to: 'lumin', label: 'Partner', color: '#44ff44' },
+            { from: 'vladyslav', to: 'integrity', label: 'Secretary', color: '#44ff44' },
+            { from: 'yevgen', to: 'drivehub', label: 'Owner', color: '#aa44ff' },
+            { from: 'petro', to: 'drivehub', label: 'Employee', color: '#aa44ff' },
+            { from: 'vladimir', to: 'impera', label: 'Owner', color: '#44ff44' },
+            { from: 'impera', to: 'integrity', label: 'Shell for', color: '#44ff44', dashes: true },
+            { from: 'impera', to: 'lumin', label: 'Created', color: '#44ff44', dashes: true },
+            { from: 'dmitry', to: 'prestige', label: 'Owner', color: '#aa44ff' },
+
+            // GPS System Access
+            { from: 'vladimir', to: 'integrity', label: 'GPS ADMIN', color: '#00ffff', width: 2 },
+            { from: 'kristy', to: 'integrity', label: 'GPS REPO', color: '#ffff00', width: 2 },
+            { from: 'petro', to: 'integrity', label: 'GPS REPO', color: '#ffff00' },
+            { from: 'vladyslav', to: 'integrity', label: 'GPS REPO', color: '#ffff00' },
+
+            // Shcherbak Family
+            { from: 'vera', to: 'vladimir', label: 'mother', color: '#44aaff' },
+            { from: 'vera', to: 'maia', label: 'mother', color: '#44aaff' },
+            { from: 'vera', to: 'marina', label: 'mother', color: '#44aaff' },
+            { from: 'vladimir', to: 'maia', label: 'sibling', color: '#44aaff', dashes: true },
+            { from: 'vladimir', to: 'marina', label: 'sibling', color: '#44aaff', dashes: true },
+
+            // Pasyuk-Shcherbak Connection
+            { from: 'vera', to: 'dmitry', label: 'relative (Pasyuk)', color: '#44aaff', dashes: true },
+            { from: 'dmitry', to: 'valentina_p', label: 'relative', color: '#44aaff', dashes: true },
+            { from: 'dmitry', to: 'sergey_p', label: 'relative', color: '#44aaff', dashes: true },
+
+            // FL Pipeline
+            { from: 'drivehub', to: 'florida', label: 'location', color: '#888' },
+            { from: 'prestige', to: 'florida', label: 'location', color: '#888' },
+            { from: 'drivehub', to: 'integrity', label: 'FL PIPELINE', color: '#ff4444', width: 2, dashes: [5,5] },
+            { from: 'prestige', to: 'integrity', label: 'HISTORICAL', color: '#888', dashes: [5,5] },
+
+            // Sacramento Hub
+            { from: 'integrity', to: 'sacramento', label: 'HQ', color: '#888' },
+            { from: 'lumin', to: 'sacramento', label: 'location', color: '#888' },
+
+            // External connections
+            { from: 'kristy', to: 'integrity', label: 'CONFLICT', color: '#ff4444', width: 2 },
+            { from: 'nesteruk', to: 'drivehub', label: 'former partner', color: '#888', dashes: true },
+            { from: 'vitaliy', to: 'lumin_fl', label: 'Partner', color: '#aa44ff' },
+            { from: 'nesteruk', to: 'lumin_fl', label: 'Partner', color: '#aa44ff' },
+            { from: 'lumin_fl', to: 'florida', label: 'location', color: '#888' },
+            { from: 'lumin_fl', to: 'integrity', label: 'FL PIPELINE', color: '#ff4444', dashes: [5,5] },
+            { from: 'taushanzhi', to: 'mikhail', label: 'in-law', color: '#888', dashes: true },
+            { from: 'anatoliy', to: 'tsiorba', label: 'connected', color: '#888', dashes: true },
+            { from: 'anatoliy', to: 'mikhail', label: 'relative', color: '#ff8844', dashes: true },
+
+            // === NEW EDGES ===
+
+            // AdvantageGPS connections
+            { from: 'integrity', to: 'advantagegps', label: 'USES', color: '#00ffff', width: 2 },
+            { from: 'advantagegps', to: 'vladimir', label: 'ADMIN access', color: '#00ffff' },
+            { from: 'advantagegps', to: 'edwin', label: 'ADMIN access', color: '#00ffff' },
+            { from: 'advantagegps', to: 'joe', label: 'ADMIN access', color: '#00ffff' },
+            { from: 'advantagegps', to: 'kristy', label: 'REPO access', color: '#ffff00' },
+            { from: 'advantagegps', to: 'master_recovery', label: 'REPO access', color: '#ffff00' },
+
+            // Westlake Financial
+            { from: 'integrity', to: 'westlake', label: 'FINANCING', color: '#ff4444', width: 2 },
+
+            // Repo contractors
+            { from: 'master_recovery', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'luis_flores', to: 'integrity', label: 'contracts', color: '#ff6600' },
+
+            // Staff connections
+            { from: 'edwin', to: 'integrity', label: 'employee', color: '#888' },
+            { from: 'joe', to: 'integrity', label: 'employee', color: '#888' },
+            { from: 'thuraya', to: 'integrity', label: 'employee', color: '#888' },
+            { from: 'monika', to: 'integrity', label: 'employee', color: '#888' },
+
+            // Church/Community
+            { from: 'slavic_trinity', to: 'auburn_blvd', label: 'location', color: '#888' },
+            { from: 'integrity', to: 'auburn_blvd', label: '2nd location', color: '#888', dashes: true },
+            { from: 'iolanta', to: 'ray_of_hope', label: 'Secretary', color: '#888' },
+
+            // Network contacts
+            { from: 'pavel_s', to: 'taushanzhi', label: 'associate', color: '#888', dashes: true },
+            { from: 'nikolay_p', to: 'vera', label: 'husband?', color: '#44aaff', dashes: true },
+            { from: 'dmitry', to: 'mariya_p', label: 'relative', color: '#44aaff', dashes: true },
+
+            // Business ownership
+            { from: 'peter_uncle', to: 'kubmo', label: 'Owner', color: '#44ff44' },
+            { from: 'denis', to: 'revvo', label: 'Owner', color: '#44ff44' },
+            { from: 'david', to: 'royal_supply', label: 'Owner', color: '#44ff44' },
+            { from: 'anatoliy', to: 'eco_homes', label: 'Owner', color: '#44ff44' },
+            { from: 'yevgen', to: 'ryan_ryan', label: 'Owner', color: '#44ff44' },
+            { from: 'dmitry', to: 'pasyuk_design', label: 'Owner', color: '#44ff44' },
+
+            // Online accounts
+            { from: 'vitaliy', to: 'ebay_vav', label: 'operates', color: '#ff44ff' },
+            { from: 'vladyslav', to: 'amazon_seller', label: 'operates', color: '#ff44ff' },
+
+            // Location connections
+            { from: 'integrity', to: 'florin_rd', label: 'HQ', color: '#888' },
+
+            // Breach connections
+            { from: 'vitaliy', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'vladyslav', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'petro', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'petro', to: 'prosper_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'vladimir', to: 'att_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'vitaliy', to: 'att_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
+
+            // === NEW REPO CONTRACTOR EDGES ===
+            { from: 'sergey_k', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'sergey_k', to: 'advantagegps', label: 'REPO access', color: '#ffff00' },
+            { from: 'rogelio_a', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'joseph_c', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'luis_deleon', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'ryan_oneil', to: 'integrity', label: 'contracts', color: '#ff6600' },
+            { from: 'narinder_s', to: 'integrity', label: 'contracts', color: '#ff6600' },
+
+            // === FERRARI FLOOD CAR EVIDENCE ===
+            { from: 'ferrari_812', to: 'lumin', label: 'tracked in GPS', color: '#ff0000', width: 2 },
+            { from: 'ferrari_812', to: 'copart', label: 'purchased from', color: '#ff0000' },
+            { from: 'ferrari_812', to: 'nicb', label: 'VERIFIED FLOOD', color: '#ff0000', width: 2 },
+            { from: 'copart', to: 'florida', label: 'location', color: '#888' },
+
+            // === REGULATORY EDGES ===
+            { from: 'integrity', to: 'ca_dmv', label: 'License #82235', color: '#888' },
+            { from: 'ca_dmv', to: 'integrity', label: 'INVESTIGATION', color: '#ff0000', dashes: true },
+            { from: 'bsis', to: 'master_recovery', label: 'should license', color: '#888', dashes: true },
+
+            // === ADDITIONAL BREACH EDGES ===
+            { from: 'petro', to: 'synthient', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'vitaliy', to: 'houzz', label: 'EXPOSED', color: '#ff0000', dashes: true },
+            { from: 'master_recovery', to: 'pdl_breach', label: 'EXPOSED', color: '#ff0000', dashes: true }
+        ]);
+
+        // Network options
+        const options = {
+            nodes: {
+                shape: 'dot',
+                size: 25,
+                font: {
+                    size: 12,
+                    color: '#ffffff',
+                    face: 'Segoe UI'
+                },
+                borderWidth: 2,
+                shadow: true
+            },
+            edges: {
+                width: 1,
+                font: {
+                    size: 10,
+                    color: '#888',
+                    strokeWidth: 0
+                },
+                arrows: {
+                    to: { enabled: true, scaleFactor: 0.5 }
+                },
+                smooth: {
+                    type: 'continuous'
+                }
+            },
+            groups: {
+                target: { color: { background: '#ff4444', border: '#ff0000' }, size: 40 },
+                arnaut: { color: { background: '#ff8844', border: '#ff6600' } },
+                shcherbak: { color: { background: '#44aaff', border: '#0088ff' } },
+                business: { color: { background: '#44ff44', border: '#00ff00' }, shape: 'box' },
+                florida: { color: { background: '#aa44ff', border: '#8800ff' } },
+                external: { color: { background: '#ffff44', border: '#ffff00' } },
+                location: { color: { background: '#888888', border: '#666666' }, shape: 'diamond' },
+                vendor: { color: { background: '#00ffff', border: '#00cccc' }, shape: 'hexagon' },
+                repo: { color: { background: '#ff6600', border: '#cc5500' } },
+                staff: { color: { background: '#66aa66', border: '#448844' } },
+                community: { color: { background: '#ffaaff', border: '#ff88ff' }, shape: 'triangle' },
+                online: { color: { background: '#ff44ff', border: '#cc00cc' }, shape: 'star' },
+                breach: { color: { background: '#ff0000', border: '#cc0000' }, shape: 'star', size: 30 },
+                evidence: { color: { background: '#ffcc00', border: '#cc9900' }, shape: 'diamond', size: 35 },
+                agency: { color: { background: '#4488ff', border: '#2266dd' }, shape: 'square' }
+            },
+            physics: {
+                stabilization: { iterations: 200 },
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    springLength: 150,
+                    springConstant: 0.02
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200
+            }
+        };
+
+        // Create network
+        const container = document.getElementById('network');
+        const data = { nodes: nodes, edges: edges };
+        const network = new vis.Network(container, data, options);
+
+        // Update stats
+        document.getElementById('nodeCount').textContent = nodes.length;
+        document.getElementById('edgeCount').textContent = edges.length;
+        document.getElementById('breachedCount').textContent =
+            nodes.get().filter(n => n.data && n.data.breaches).length;
+
+        // Click handler for sidebar
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                const node = nodes.get(nodeId);
+                showSidebar(node);
+            }
+        });
+
+        function showSidebar(node) {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('sidebarContent');
+
+            let html = `<h2>${node.label.replace('\n', ' ')}</h2>`;
+
+            if (node.data) {
+                for (const [key, value] of Object.entries(node.data)) {
+                    let valueClass = '';
+                    if (key === 'breaches' || key === 'passwords') valueClass = 'compromised';
+                    else if (key === 'bankruptcy') valueClass = 'warning';
+                    html += `
+                        <div class="field">
+                            <div class="label">${key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                            <div class="value ${valueClass}">${value}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            content.innerHTML = html;
+            sidebar.classList.add('open');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function filterByGroup(group) {
+            if (group === 'all') {
+                nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
+                edges.forEach(edge => edges.update({ id: edge.id, hidden: false }));
+            } else if (group === 'breached') {
+                nodes.forEach(node => {
+                    const hasBreaches = node.data && node.data.breaches;
+                    nodes.update({ id: node.id, hidden: !hasBreaches });
+                });
+            } else {
+                nodes.forEach(node => {
+                    const show = node.group === group ||
+                        (group === 'florida' && (node.group === 'florida' || node.id === 'prestige' || node.id === 'drivehub'));
+                    nodes.update({ id: node.id, hidden: !show });
+                });
+            }
+        }
+
+        function resetView() {
+            nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
+            edges.forEach(edge => edges.update({ id: edge.id, hidden: false }));
+            network.fit();
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase();
+            if (query.length < 2) {
+                nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
+                return;
+            }
+
+            nodes.forEach(node => {
+                const label = node.label.toLowerCase();
+                const dataStr = node.data ? JSON.stringify(node.data).toLowerCase() : '';
+                const match = label.includes(query) || dataStr.includes(query);
+                nodes.update({ id: node.id, hidden: !match });
+            });
+        });
+
+        // Keyboard shortcut to close sidebar
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeSidebar();
+        });
+    </script>
+</body>
+</html>
+                               
