@@ -1,1164 +1,1397 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <title>SAC Investigation - Intelligence Analysis Platform</title>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arnaut Network Intelligence Graph</title>
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vis-network/styles/vis-network.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, sans-serif;
             background: #0a0a0f;
             color: #e0e0e0;
             overflow: hidden;
         }
-        #network {
-            width: 100vw;
-            height: 100vh;
-        }
-        #sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 400px;
-            height: 100vh;
-            background: rgba(15, 15, 25, 0.95);
-            border-left: 1px solid #333;
-            padding: 20px;
-            overflow-y: auto;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-        }
-        #sidebar.open {
-            transform: translateX(0);
-        }
-        #sidebar h2 {
-            color: #00d4ff;
-            margin-bottom: 15px;
-            font-size: 1.4em;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
-        }
-        #sidebar .field {
-            margin-bottom: 12px;
-        }
-        #sidebar .label {
-            color: #888;
-            font-size: 0.85em;
-            text-transform: uppercase;
-        }
-        #sidebar .value {
-            color: #fff;
-            font-size: 1em;
-            word-break: break-all;
-        }
-        #sidebar .value.compromised {
-            color: #ff4444;
-        }
-        #sidebar .value.clean {
-            color: #44ff44;
-        }
-        #sidebar .value.warning {
-            color: #ffaa00;
-        }
-        #sidebar .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        #sidebar .close-btn:hover {
-            color: #fff;
-        }
-        #header {
+
+        /* Top Navigation */
+        #topnav {
+            background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
+            border-bottom: 1px solid #2a2a3a;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            height: 50px;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            background: rgba(15, 15, 25, 0.9);
-            padding: 15px 25px;
-            z-index: 100;
-            border-bottom: 1px solid #333;
+            z-index: 1000;
         }
-        #header h1 {
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
             color: #00d4ff;
-            font-size: 1.5em;
-            font-weight: 300;
+            letter-spacing: 3px;
+            margin-right: 40px;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
         }
-        #header .subtitle {
-            color: #666;
-            font-size: 0.85em;
+
+        .logo span { color: #ff4757; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 5px;
         }
-        #legend {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(15, 15, 25, 0.9);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            z-index: 100;
+
+        .nav-tab {
+            padding: 12px 25px;
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        #legend h3 {
+
+        .nav-tab:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+        .nav-tab.active {
             color: #00d4ff;
-            margin-bottom: 10px;
-            font-size: 0.9em;
+            border-bottom-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
         }
-        #legend .item {
+
+        .nav-tab .count {
+            background: #ff4757;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+        }
+
+        .nav-right {
+            margin-left: auto;
             display: flex;
             align-items: center;
-            margin-bottom: 6px;
-            font-size: 0.8em;
+            gap: 15px;
         }
-        #legend .dot {
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Content */
+        #main-content {
+            margin-top: 50px;
+            height: calc(100vh - 50px);
+            position: relative;
+        }
+
+        .tab-panel {
+            display: none;
+            height: 100%;
+            width: 100%;
+        }
+
+        .tab-panel.active { display: block; }
+
+        /* Network Tab */
+        #network-panel {
+            display: flex;
+            height: 100%;
+        }
+
+        #network-sidebar {
+            width: 280px;
+            background: #12121a;
+            border-right: 1px solid #2a2a3a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+
+        .sidebar-header h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            background: #1a1a24;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+        }
+
+        .search-box:focus { outline: none; border-color: #00d4ff; }
+        .search-box::placeholder { color: #555; }
+
+        .filter-section {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+
+        .filter-section h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .filter-chip {
+            padding: 5px 10px;
+            background: #1a1a24;
+            border: 1px solid #2a2a3a;
+            border-radius: 15px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-chip:hover { border-color: #00d4ff; color: #00d4ff; }
+        .filter-chip.active { background: #00d4ff; color: #0a0a0f; border-color: #00d4ff; }
+
+        .legend-section {
+            padding: 15px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .legend-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            margin-right: 8px;
+            flex-shrink: 0;
         }
-        #controls {
-            position: fixed;
-            top: 80px;
-            left: 20px;
-            background: rgba(15, 15, 25, 0.9);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            z-index: 100;
+
+        #network-container {
+            flex: 1;
+            position: relative;
         }
-        #controls button {
-            display: block;
-            width: 100%;
-            padding: 8px 15px;
-            margin-bottom: 8px;
-            background: #1a1a2e;
-            border: 1px solid #333;
-            color: #e0e0e0;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.85em;
-        }
-        #controls button:hover {
-            background: #2a2a4e;
-            border-color: #00d4ff;
-        }
-        #controls button:last-child {
-            margin-bottom: 0;
-        }
-        #stats {
-            position: fixed;
-            top: 80px;
+
+        #network-graph { width: 100%; height: 100%; }
+
+        /* Node Detail Panel */
+        #detail-panel {
+            position: absolute;
+            top: 20px;
             right: 20px;
-            background: rgba(15, 15, 25, 0.9);
+            width: 350px;
+            background: rgba(18, 18, 26, 0.95);
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            display: none;
+            max-height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+
+        #detail-panel.open { display: block; }
+
+        .detail-header {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .detail-header h2 {
+            font-size: 16px;
+            color: #00d4ff;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover { color: white; }
+
+        .detail-content { padding: 15px; }
+
+        .detail-field {
+            margin-bottom: 12px;
+        }
+
+        .detail-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .detail-value.warning { color: #ff4757; }
+        .detail-value.success { color: #00ff88; }
+        .detail-value a { color: #00d4ff; text-decoration: none; }
+        .detail-value a:hover { text-decoration: underline; }
+
+        /* Vehicles Tab */
+        #vehicles-panel { position: relative; height: 100%; }
+        #vehicle-map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+        #vehicle-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(18, 18, 26, 0.95);
             padding: 15px;
             border-radius: 8px;
-            border: 1px solid #333;
-            z-index: 100;
-            font-size: 0.85em;
+            border: 1px solid #2a2a3a;
+            width: 280px;
         }
-        #stats .stat {
+
+        #vehicle-controls h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        #vehicle-search {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a24;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .vehicle-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .vehicle-filter {
+            padding: 5px 10px;
+            background: transparent;
+            border: 1px solid #2a2a3a;
+            border-radius: 4px;
+            color: #888;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .vehicle-filter:hover { border-color: #00d4ff; color: #00d4ff; }
+        .vehicle-filter.active { background: #00d4ff; color: #0a0a0f; }
+
+        #vehicle-stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(18, 18, 26, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #2a2a3a;
+        }
+
+        .vehicle-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 12px;
+        }
+
+        .vehicle-stat-label { color: #888; }
+        .vehicle-stat-value { color: #00d4ff; font-weight: bold; }
+
+        /* Breaches Tab */
+        #breaches-panel {
+            padding: 30px;
+            overflow-y: auto;
+            height: 100%;
+        }
+
+        .breach-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .breach-card {
+            background: #12121a;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .breach-card:hover {
+            border-color: #ff4757;
+            transform: translateY(-2px);
+        }
+
+        .breach-card h3 {
+            color: #ff4757;
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .breach-card h3::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #ff4757;
+            border-radius: 50%;
+        }
+
+        .breach-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .breach-exposed {
+            background: #1a1a24;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .breach-exposed strong { color: #ff4757; }
+
+        .breach-accounts {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #2a2a3a;
+        }
+
+        .breach-accounts h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
             margin-bottom: 8px;
         }
-        #stats .stat-value {
-            color: #00d4ff;
-            font-weight: bold;
+
+        .account-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+            border-radius: 4px;
+            font-size: 11px;
+            margin: 2px;
+            font-family: monospace;
         }
-        #search {
-            position: fixed;
-            top: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
+
+        /* Timeline Tab */
+        #timeline-panel {
+            padding: 30px 50px;
+            overflow-y: auto;
+            height: 100%;
         }
-        #search input {
-            width: 300px;
-            padding: 10px 15px;
-            background: rgba(15, 15, 25, 0.9);
-            border: 1px solid #333;
-            border-radius: 20px;
-            color: #fff;
-            font-size: 0.9em;
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
         }
-        #search input:focus {
-            outline: none;
-            border-color: #00d4ff;
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #2a2a3a;
         }
-        #search input::placeholder {
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            background: #00d4ff;
+            border-radius: 50%;
+            border: 2px solid #0a0a0f;
+        }
+
+        .timeline-item.critical::before { background: #ff4757; }
+        .timeline-item.success::before { background: #00ff88; }
+
+        .timeline-date {
+            font-size: 11px;
             color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
         }
+
+        .timeline-title {
+            font-size: 15px;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+
+        .timeline-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        /* Popup styles for Leaflet */
+        .vehicle-popup { min-width: 250px; }
+        .vehicle-popup h3 {
+            margin: 0 0 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ff4757;
+            color: #1a1a24;
+            font-size: 14px;
+        }
+        .vehicle-popup .field { margin: 5px 0; font-size: 12px; }
+        .vehicle-popup .label { font-weight: bold; color: #666; width: 70px; display: inline-block; }
+        .vehicle-popup .vin { font-family: monospace; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
+        .vehicle-popup .flood-warning { background: #ff4757; color: white; padding: 5px 10px; border-radius: 3px; margin: 10px 0; font-weight: bold; }
+        .vehicle-popup .features { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; }
+        .feature-tag { display: inline-block; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+        .feature-fste { background: #ff4757; color: white; }
+        .feature-fliv { background: #00cc66; color: white; }
+        .osm-link { display: block; margin-top: 10px; color: #0066cc; font-size: 12px; }
     </style>
 </head>
 <body>
-    <div id="header">
-        <h1>ARNAUT NETWORK INTELLIGENCE GRAPH</h1>
-        <div class="subtitle">Sacrameto Journalist Investigation | Network Analysis | Last Updated: 2025-12-28</div>
+    <!-- Top Navigation -->
+    <nav id="topnav">
+        <div class="logo">SAC <span>INVESTIGATION</span></div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('network')">
+                Network
+                <span class="count" id="network-count">82</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('vehicles')">
+                Vehicles
+                <span class="count" id="vehicles-count">998</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('breaches')">
+                Breaches
+                <span class="count">7</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('timeline')">
+                Timeline
+            </button>
+            <button class="nav-tab" onclick="switchTab('criminal')">
+                Criminal
+                <span class="count" style="background: #ff0000;">8</span>
+            </button>
+        </div>
+        <div class="nav-right">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>LIVE DATA</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <!-- Network Tab -->
+        <div id="network-tab" class="tab-panel active">
+            <div id="network-panel">
+                <div id="network-sidebar">
+                    <div class="sidebar-header">
+                        <h3>Search Entities</h3>
+                        <input type="text" class="search-box" id="network-search" placeholder="Search names, emails, phones...">
+                    </div>
+                    <div class="filter-section">
+                        <h4>Filter by Type</h4>
+                        <div class="filter-chips">
+                            <span class="filter-chip active" onclick="filterNetwork('all')">All</span>
+                            <span class="filter-chip" onclick="filterNetwork('arnaut')">Arnaut</span>
+                            <span class="filter-chip" onclick="filterNetwork('business')">Business</span>
+                            <span class="filter-chip" onclick="filterNetwork('florida')">Florida</span>
+                            <span class="filter-chip" onclick="filterNetwork('breach')">Breaches</span>
+                            <span class="filter-chip" onclick="filterNetwork('repo')">Repo</span>
+                        </div>
+                    </div>
+                    <div class="legend-section">
+                        <h4 style="font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 10px;">Legend</h4>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ff4444;"></div> Target</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ff8844;"></div> Arnaut Family</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #44aaff;"></div> Shcherbak/Pasyuk</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #44ff44;"></div> Business</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #aa44ff;"></div> Florida Ops</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #00ffff;"></div> Vendor/Tech</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ff6600;"></div> Repo Contractor</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ff0000;"></div> Data Breach</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ffcc00;"></div> Evidence</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #4488ff;"></div> Agency</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #33cc33;"></div> Vehicle</div>
+                    </div>
+                </div>
+                <div id="network-container">
+                    <div id="network-graph"></div>
+                    <div id="detail-panel">
+                        <div class="detail-header">
+                            <h2 id="detail-title">Entity Details</h2>
+                            <button class="close-btn" onclick="closeDetail()">&times;</button>
+                        </div>
+                        <div class="detail-content" id="detail-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicles Tab -->
+        <div id="vehicles-tab" class="tab-panel">
+            <div id="vehicles-panel">
+                <div id="vehicle-map"></div>
+                <div id="vehicle-controls">
+                    <h3>Search & Filter</h3>
+                    <input type="text" id="vehicle-search" placeholder="VIN, make, model, address...">
+                    <div class="vehicle-filters">
+                        <button class="vehicle-filter active" onclick="filterVehicles('all', this)">All</button>
+                        <button class="vehicle-filter" onclick="filterVehicles('luxury', this)">Luxury</button>
+                        <button class="vehicle-filter" onclick="filterVehicles('flood', this)">Flood</button>
+                        <button class="vehicle-filter" onclick="filterVehicles('starter', this)">Starter Kill</button>
+                        <button class="vehicle-filter" onclick="filterVehicles('outofstate', this)">Out of State</button>
+                    </div>
+                </div>
+                <div id="vehicle-stats">
+                    <div class="vehicle-stat">
+                        <span class="vehicle-stat-label">Total Vehicles</span>
+                        <span class="vehicle-stat-value" id="stat-total">0</span>
+                    </div>
+                    <div class="vehicle-stat">
+                        <span class="vehicle-stat-label">With VIN</span>
+                        <span class="vehicle-stat-value" id="stat-vin">0</span>
+                    </div>
+                    <div class="vehicle-stat">
+                        <span class="vehicle-stat-label">Luxury</span>
+                        <span class="vehicle-stat-value" id="stat-luxury">0</span>
+                    </div>
+                    <div class="vehicle-stat">
+                        <span class="vehicle-stat-label">Starter Kill</span>
+                        <span class="vehicle-stat-value" id="stat-starter">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breaches Tab -->
+        <div id="breaches-tab" class="tab-panel">
+            <div id="breaches-panel">
+                <div class="breach-grid">
+                    <div class="breach-card">
+                        <h3>ALIEN TXTBASE</h3>
+                        <div class="breach-meta">
+                            <span>February 2025</span>
+                            <span>284M Records</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Emails, PASSWORDS (plaintext)
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">va@integrityautoz.com</span>
+                            <span class="account-chip">vladarnaut@gmail.com</span>
+                            <span class="account-chip">pparnaut91@gmail.com</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>AT&T Data Breach</h3>
+                        <div class="breach-meta">
+                            <span>2024</span>
+                            <span>Telecom Records</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Phone numbers, Addresses, Account info
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">lg.integrityauto@gmail.com</span>
+                            <span class="account-chip">Vladimir Shcherbak</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>Prosper Financial</h3>
+                        <div class="breach-meta">
+                            <span>September 2025</span>
+                            <span>17.6M Records</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> DOB, Address, Gov IDs, Credit, Income, Employment
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">pparnaut91@gmail.com</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>Synthient Stealer</h3>
+                        <div class="breach-meta">
+                            <span>2025</span>
+                            <span>183M Records</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Emails, PASSWORDS (from infected machines)
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">pparnaut91@gmail.com</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>Houzz.com</h3>
+                        <div class="breach-meta">
+                            <span>2019</span>
+                            <span>Home Design Platform</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Emails, Passwords, IP addresses, Location
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">Vitaliy Arnaut</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>PDL Data Enrichment</h3>
+                        <div class="breach-meta">
+                            <span>October 2019</span>
+                            <span>600M+ Records</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Full PII, Employment, Social profiles
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>Affected Accounts</h4>
+                            <span class="account-chip">master_recovery1601@yahoo.com</span>
+                        </div>
+                    </div>
+                    <div class="breach-card">
+                        <h3>integrity.shop@yahoo.com</h3>
+                        <div class="breach-meta">
+                            <span>Multiple</span>
+                            <span>5 Breaches</span>
+                        </div>
+                        <div class="breach-exposed">
+                            <strong>Exposed:</strong> Email, Passwords, Personal data
+                        </div>
+                        <div class="breach-accounts">
+                            <h4>eBay Account</h4>
+                            <span class="account-chip">vavautosales (3,662 transactions)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Tab -->
+        <div id="timeline-tab" class="tab-panel">
+            <div id="timeline-panel">
+                <h2 style="color: #00d4ff; margin-bottom: 20px; font-size: 18px;">Investigation Timeline</h2>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ff4757; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">December 2025 — Active Investigation</h3>
+                    <div class="timeline">
+                        <div class="timeline-item success">
+                            <div class="timeline-date">December 29, 2025</div>
+                            <div class="timeline-title">Ministry Ray of Hope & Corporate Intel Verified</div>
+                            <div class="timeline-desc">MAJOR: Arnaut family ministry discovered via CA SOS. Petro=CEO, Vitaliy=CFO, Iolanta=Secretary. Originally at dealership address! FTB-suspended April 2024. Also verified 6 total entities for Vitaliy + Petro's Roseville address. Sergey Kisel connection DISPROVEN.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">December 28, 2025 - 9PM EST</div>
+                            <div class="timeline-title">Kristy Dewit Response Deadline</div>
+                            <div class="timeline-desc">48-hour deadline for GEICO investigator to respond. If no response, escalation to Sentry Insurance and GEICO Legal.</div>
+                        </div>
+                        <div class="timeline-item success">
+                            <div class="timeline-date">December 28, 2025</div>
+                            <div class="timeline-title">BeenVerified Major Discovery</div>
+                            <div class="timeline-desc">6th sibling Iolanta Arnaut confirmed. Oleksandr Arnaut unverified (BeenVerified only). Pasyuk FL cluster identified near DriveHub. Dmitry Pasyuk's failed FL dealership confirmed.</div>
+                        </div>
+                        <div class="timeline-item success">
+                            <div class="timeline-date">December 27, 2025</div>
+                            <div class="timeline-title">Breach Intel Extraction Complete</div>
+                            <div class="timeline-desc">Hudson Rock API: 50+ emails queried. "integrity" machine compromise confirmed (Feb 2024). pparnaut91@gmail.com found in 3 breaches with passwords. Password pattern "Integrity3655" identified.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">December 27, 2025</div>
+                            <div class="timeline-title">Impera Design Co Confirmed Shell</div>
+                            <div class="timeline-desc">Vladimir Shcherbak's Impera Design Co confirmed as shell company. No real content, PPP loan recipient ($15,307). Invoice pass-through structure identified.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">December 26, 2025</div>
+                            <div class="timeline-title">Direct Contact Initiated</div>
+                            <div class="timeline-desc">Pressure emails sent to Kristy Dewit (kristydewit@yahoo.com) and Vitaliy Arnaut regarding GPS data exposure findings.</div>
+                        </div>
+                        <div class="timeline-item success">
+                            <div class="timeline-date">December 26, 2025</div>
+                            <div class="timeline-title">Ferrari 812 Flood Status Confirmed</div>
+                            <div class="timeline-desc">NICB VINCheck (Federal database): VIN ZFF83CLA3K0247114 confirmed SALVAGE/FLOOD from Hurricane Ian (Sept 18, 2022). McLaren forum confirms Lumin known for FL flood cars.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">December 26, 2025</div>
+                            <div class="timeline-title">AdvantageGPS Critical Exposure</div>
+                            <div class="timeline-desc">Unauthenticated API endpoints exposed: 3,193 vehicles, 29 users, 997 VINs, 3,005 addresses, remote starter kill capability. CVSS 9.1 vulnerability documented.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">December 26, 2025</div>
+                            <div class="timeline-title">GEICO Insider Identified</div>
+                            <div class="timeline-desc">Kristy Dewit (kdewit@geico.com) - GEICO SIU fraud investigator found with active "Repo" role in Integrity's GPS system. Material conflict of interest. User ID 100027.</div>
+                        </div>
+                        <div class="timeline-item success">
+                            <div class="timeline-date">December 26, 2025</div>
+                            <div class="timeline-title">Arnaut Family Instagram Network Mapped</div>
+                            <div class="timeline-desc">All 5 siblings found on Instagram with public profiles: @vitaliyarnaut (283 followers), @vladarnaut, @zhenya.arnaut, @petrarnaut, @irinakisel (Irina Benedyuk née Arnaut, 397 followers - most active).</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">December 23, 2025</div>
+                            <div class="timeline-title">Investigation Initiated</div>
+                            <div class="timeline-desc">Social engineering / OSINT assessment begins. Target: Integrity Auto Sales, Vitaliy Arnaut, Sacramento CA.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ff8800; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">2025 — Business Collapse & Breaches</h3>
+                    <div class="timeline">
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">September 2025</div>
+                            <div class="timeline-title">Prosper Financial Breach</div>
+                            <div class="timeline-desc">17.6M records exposed. pparnaut91@gmail.com (Petr Arnaut) affected: DOB, Address, Gov IDs, Credit, Income, Employment data exposed.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">June 2025</div>
+                            <div class="timeline-title">Kristy Dewit Leaves GEICO</div>
+                            <div class="timeline-desc">After 6+ years as GEICO Senior Field Security Investigator (SIU), moves to Sentry Insurance. GPS system account remains active despite departure.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">February 2025</div>
+                            <div class="timeline-title">ALIEN TXTBASE Breach</div>
+                            <div class="timeline-desc">284M records with PLAINTEXT PASSWORDS. Compromised: va@integrityautoz.com, vladarnaut@gmail.com, pparnaut91@gmail.com. Password "Integrity3655" exposed.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">January 31, 2025</div>
+                            <div class="timeline-title">DriveHub Bankruptcy Filed</div>
+                            <div class="timeline-desc">Case 6:25-bk-00594 filed in Florida Middle District. Officers: Yevgen Arnaut (President), Petro Arnaut. Estimated liabilities $1-10M. BBB F rating with 3 unanswered complaints.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ffcc00; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">2024 — Malware Infection & AT&T Breach</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-date">2024</div>
+                            <div class="timeline-title">AT&T Data Breach</div>
+                            <div class="timeline-desc">Telecom records exposed. lg.integrityauto@gmail.com and Vladimir Shcherbak (4777 Bucknell Ct) affected. Phone numbers and addresses leaked.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">February 15, 2024</div>
+                            <div class="timeline-title">Infostealer Malware Infection</div>
+                            <div class="timeline-desc">Workstation "integrity" infected via C:\Windows\BitLockerDiscoveryVolumeContents\BitLockerToGo.exe. No AV detected. 3 accounts exfiltrated: va@, vladarnaut@, integrity.shop@. 34 services compromised.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">~2024</div>
+                            <div class="timeline-title">Prestige Auto of South Florida Closes</div>
+                            <div class="timeline-desc">Dmitry Pasyuk's (Shcherbak cousin) used car dealership in North Port, FL closes after ~12 years of operation. No longer in FL DHSMV dealer database. BBB complaints and 2015 RipoffReport documented.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">April 2, 2024</div>
+                            <div class="timeline-title">Ministry Ray of Hope FTB Suspension</div>
+                            <div class="timeline-desc">California Franchise Tax Board suspends Ministry Ray of Hope Sacramento Inc. nonprofit status. Address changed from dealership to Vitaliy's home (6032 Palermo Way, Roseville). Iolanta Arnaut now registered agent.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #00d4ff; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">2022-2023 — Florida Operations & Flood Car</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-date">January 2023</div>
+                            <div class="timeline-title">Lumin Auto Group FL Withdrawn</div>
+                            <div class="timeline-desc">Jacksonville, FL venture (7721 Blanding Blvd) between Vitaliy Arnaut and Yevgeniy Nesteruk dissolved. Same complaint patterns as California operations.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">December 14, 2022</div>
+                            <div class="timeline-title">Ferrari 812 Purchased at Copart</div>
+                            <div class="timeline-desc">Lot #63556532, Copart Miami South, FL. Flood-damaged 2019 Ferrari 812 Superfast purchased for ~$59,000. Original MSRP ~$340,000. Currently tracked in GPS at Houston, TX.</div>
+                        </div>
+                        <div class="timeline-item critical">
+                            <div class="timeline-date">September 18, 2022</div>
+                            <div class="timeline-title">Hurricane Ian Flood Damage</div>
+                            <div class="timeline-desc">Ferrari 812 (VIN ZFF83CLA3K0247114) totaled by Hurricane Ian flood damage in Florida. NICB federal database entry created. Airbag integrity warning issued.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #aa44ff; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">2019-2021 — Early Breaches & GEICO Connection</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-date">March 2021</div>
+                            <div class="timeline-title">Impera Design Co PPP Loan</div>
+                            <div class="timeline-desc">Vladimir Shcherbak's shell company receives $15,307 PPP loan. Since paid off. Company used for invoice pass-through from Arnaut dealerships.</div>
+                        </div>
+                        <div class="timeline-item success">
+                            <div class="timeline-date">November 25, 2019</div>
+                            <div class="timeline-title">Ministry Ray of Hope Sacramento Inc. Filed</div>
+                            <div class="timeline-desc">Arnaut family nonprofit religious corporation filed (CA SOS #4534299). Officers: Petro (CEO), Vitaliy (CFO), Iolanta (Secretary). Originally registered at DEALERSHIP ADDRESS (3655 Florin Rd). Later suspended by FTB April 2024.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">October 2019</div>
+                            <div class="timeline-title">PDL Data Enrichment Breach</div>
+                            <div class="timeline-desc">600M+ records exposed. master_recovery1601@yahoo.com (repo contractor) affected. Full PII, employment, social profiles leaked.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">2019</div>
+                            <div class="timeline-title">Houzz.com Breach</div>
+                            <div class="timeline-desc">Home design platform breached. Vitaliy Arnaut account affected. Emails, passwords, IP addresses, location data exposed.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">February 2019</div>
+                            <div class="timeline-title">Kristy Dewit Joins GEICO SIU</div>
+                            <div class="timeline-desc">Begins role as Senior Field Security Investigator in Special Investigations Unit. At some point gains "Repo" access to Integrity Auto's GPS tracking system. Conflict of interest begins.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #888; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Historical Background</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-date">2017-2019</div>
+                            <div class="timeline-title">TheftPatrol/M2M Suite Development</div>
+                            <div class="timeline-desc">Stanislav Doskalenko (AgileEngine contractor) develops TheftPatrol/M2M Suite for Procon Analytics. Mapbox API token embedded in code never rotated after departure.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">November 2012</div>
+                            <div class="timeline-title">Prestige Auto of South Florida Opens</div>
+                            <div class="timeline-desc">Dmitry Pasyuk (Shcherbak family cousin) opens used car dealership in North Port, FL. RipoffReport complaint in 2015 (sold BMW for $28K, kept money).</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">January 2010</div>
+                            <div class="timeline-title">eBay Account Created</div>
+                            <div class="timeline-desc">vavautosales eBay account established. 15 years of activity, 3,662 transactions primarily as BUYER. Used for parts/vehicle sourcing. Activity ceased in 2024.</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">~2000s</div>
+                            <div class="timeline-title">Arnaut Family Immigration</div>
+                            <div class="timeline-desc">Family emigrates from Gagauzia, Moldova (Чадыр-Лунга region) to Sacramento, CA. Joins established Slavic community. Father Mikhail (b. 1965), mother Tetyana, 6 confirmed children.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Criminal Tab -->
+        <div id="criminal-tab" class="tab-panel">
+            <div id="timeline-panel" style="padding: 30px; max-width: 1200px; margin: 0 auto; overflow-y: auto; height: calc(100vh - 80px);">
+                <h2 style="color: #ff0000; margin-bottom: 20px; font-size: 24px;">⚠️ Criminal Records — Arnaut Family</h2>
+                <p style="color: #888; margin-bottom: 30px;">Court records verified via JudyRecords.com (December 29, 2025)</p>
+
+                <!-- Vitaliy Arnaut -->
+                <div style="margin-bottom: 40px; background: #12121a; border: 1px solid #ff4444; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #ff4444; font-size: 18px; margin-bottom: 15px;">VITALIY ARNAUT — CEO</h3>
+                    <p style="color: #00d4ff; margin-bottom: 15px;">DOB: February 2, 1981 (CONFIRMED) | Former Address: 25 Bradbury Road, Owings Mills, MD 21117</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #1a1a24;">
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Case #</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Court</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Date</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Charge</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Disposition</th>
+                        </tr>
+                        <tr style="background: rgba(255,0,0,0.1);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">NR00P0RSW</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">MD District - Allegany County</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">08/24/2019</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff4444; font-weight: bold;">INDECENT EXPOSURE</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000;">GUILTY - PREPAID</td>
+                        </tr>
+                        <tr style="background: rgba(255,0,0,0.1);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">03-K-04-000578</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">MD Circuit - Baltimore County</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">02/23/2004</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff4444; font-weight: bold;">DUI - DRIVING UNDER INFLUENCE</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000;">GUILTY (Charge 2)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">6C00183728</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">MD District - Baltimore County</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">01/19/2003</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ffcc00;">MARIJUANA POSSESSION</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Plea: Not Guilty</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Petro Arnaut -->
+                <div style="margin-bottom: 40px; background: #12121a; border: 1px solid #ff0000; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #ff0000; font-size: 18px; margin-bottom: 15px;">🚨 PETRO ARNAUT — FELONY ARREST</h3>
+                    <p style="color: #00d4ff; margin-bottom: 15px;">DOB: June 25, 1991 (CONFIRMED) | DriveHub Employee + Ministry CEO</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #1a1a24;">
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Case #</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Court</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Date</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Charge</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Disposition</th>
+                        </tr>
+                        <tr style="background: rgba(255,0,0,0.2);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2021-CF-002739-A-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Circuit</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">03/07/2021</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000; font-weight: bold;">COCAINE POSSESSION (3rd Deg FELONY)</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">No Information (Dropped)</td>
+                        </tr>
+                        <tr style="background: rgba(255,0,0,0.2);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2021-CF-002739-A-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Circuit</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">03/07/2021</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff4444;">Drug Paraphernalia (Misdemeanor)</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">No Information (Dropped)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2024-CC-009602-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Civil</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">05/20/2024</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ffcc00;">EVICTION (with Vladyslav)</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Voluntarily Dismissed</td>
+                        </tr>
+                    </table>
+                    <p style="color: #ff8800; margin-top: 15px; font-size: 12px;">⚠️ Bond ($1,100) paid by brother YEVGEN ARNAUT — family financial support network confirmed</p>
+                </div>
+
+                <!-- Yevgen Arnaut -->
+                <div style="margin-bottom: 40px; background: #12121a; border: 1px solid #ff8800; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #ff8800; font-size: 18px; margin-bottom: 15px;">⚠️ YEVGEN ARNAUT — LICENSE PLATE FRAUD</h3>
+                    <p style="color: #00d4ff; margin-bottom: 15px;">DOB: September 18, 1989 (CONFIRMED) | DriveHub Owner (Bankrupt)</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #1a1a24;">
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Case #</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Court</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Date</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Charge</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Disposition</th>
+                        </tr>
+                        <tr style="background: rgba(255,136,0,0.2);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2022-CT-007415-A-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Criminal Traffic</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">12/17/2022</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff8800; font-weight: bold;">ATTACHING TAG NOT ASSIGNED (License Plate Swap)</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Nolle Prosequi</td>
+                        </tr>
+                        <tr style="background: rgba(255,0,0,0.1);">
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2022-TR-202497-A-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Traffic</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">12/17/2022</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff4444;">DRIVING WITH SUSPENDED LICENSE</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000;">GUILTY</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2022-TR-081656-A-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Traffic</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">06/19/2022</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">No Registration</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000;">GUILTY</td>
+                        </tr>
+                    </table>
+                    <p style="color: #ff0000; margin-top: 15px; font-size: 12px; font-weight: bold;">🚨 "Attaching tag not assigned" = LICENSE PLATE SWAPPING — Same fraud pattern alleged at dealership operations!</p>
+                </div>
+
+                <!-- Vladyslav Arnaut -->
+                <div style="margin-bottom: 40px; background: #12121a; border: 1px solid #ffcc00; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #ffcc00; font-size: 18px; margin-bottom: 15px;">VLADYSLAV ARNAUT — Traffic & Eviction</h3>
+                    <p style="color: #00d4ff; margin-bottom: 15px;">DOB: ~1983 | Secretary / Corp Admin</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #1a1a24;">
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Case #</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Court</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Date</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Charge</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Disposition</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2024-CC-009602-O</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Orange County, FL Civil</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">05/20/2024</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ffcc00;">EVICTION (Radius Apartments, with Petro)</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Voluntarily Dismissed</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">TTR18-001601</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Nevada County, CA Superior</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">01/03/2018</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Speeding 80/65 + No Front Plate</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Bail Forfeiture</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2005-2006</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Flagler County, FL</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">2005-2006</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">Careless Driving, No Valid License</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #ff0000;">GUILTY</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Parents Bankruptcy -->
+                <div style="margin-bottom: 40px; background: #12121a; border: 1px solid #aa44ff; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #aa44ff; font-size: 18px; margin-bottom: 15px;">MYKHAYLO & TETYANA ARNAUT — Parents Bankruptcy</h3>
+                    <p style="color: #00d4ff; margin-bottom: 15px;">Chapter 13 Bankruptcy (E.D. California)</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #1a1a24;">
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Case #</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Court</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Filed</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Discharged</th>
+                            <th style="padding: 10px; text-align: left; color: #888; border-bottom: 1px solid #2a2a3a;">Trustee</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">14-24580</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">US Bankruptcy Court, E.D. California</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">April 30, 2014</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a; color: #00ff88;">February 12, 2018</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #2a2a3a;">David Cusick</td>
+                        </tr>
+                    </table>
+                    <p style="color: #888; margin-top: 15px; font-size: 12px;">📊 Analysis: Parents filed bankruptcy during Integrity Auto Sales growth phase (2012-2018)</p>
+                </div>
+
+                <!-- Summary -->
+                <div style="background: linear-gradient(135deg, #1a0000 0%, #12121a 100%); border: 2px solid #ff0000; border-radius: 8px; padding: 20px;">
+                    <h3 style="color: #ff0000; font-size: 16px; margin-bottom: 15px;">🚨 KEY FINDINGS SUMMARY</h3>
+                    <ul style="color: #e0e0e0; line-height: 2; font-size: 13px;">
+                        <li><strong style="color: #ff4444;">Vitaliy (CEO):</strong> DUI conviction, Indecent Exposure conviction, Marijuana arrest</li>
+                        <li><strong style="color: #ff0000;">Petro:</strong> FELONY cocaine arrest (charges dropped), Evicted from FL apartment</li>
+                        <li><strong style="color: #ff8800;">Yevgen:</strong> LICENSE PLATE SWAPPING charge — <span style="color: #ff0000;">SAME FRAUD PATTERN AS DEALERSHIP!</span></li>
+                        <li><strong style="color: #ffcc00;">Vladyslav:</strong> Evicted with Petro (2024), No valid license history (FL)</li>
+                        <li><strong style="color: #aa44ff;">Parents:</strong> Chapter 13 bankruptcy during business growth (2014-2018)</li>
+                        <li><strong style="color: #00d4ff;">Pattern:</strong> Yevgen paid Petro's cocaine bond — family financial network</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="search">
-        <input type="text" id="searchInput" placeholder="Search nodes... (name, business, location)">
-    </div>
-
-    <div id="controls">
-        <button onclick="filterByGroup('all')">Show All</button>
-        <button onclick="filterByGroup('arnaut')">Arnaut Family</button>
-        <button onclick="filterByGroup('shcherbak')">Shcherbak/Pasyuk</button>
-        <button onclick="filterByGroup('business')">Businesses</button>
-        <button onclick="filterByGroup('florida')">Florida Ops</button>
-        <button onclick="filterByGroup('vendor')">Tech/Vendors</button>
-        <button onclick="filterByGroup('staff')">Staff</button>
-        <button onclick="filterByGroup('breach')">Breaches</button>
-        <button onclick="filterByGroup('breached')">Breached Accounts</button>
-        <button onclick="resetView()">Reset View</button>
-    </div>
-
-    <div id="stats">
-        <div class="stat">Nodes: <span class="stat-value" id="nodeCount">0</span></div>
-        <div class="stat">Edges: <span class="stat-value" id="edgeCount">0</span></div>
-        <div class="stat">Breached: <span class="stat-value" id="breachedCount">0</span></div>
-    </div>
-
-    <div id="legend">
-        <h3>NODE TYPES</h3>
-        <div class="item"><div class="dot" style="background: #ff4444;"></div> Target (Vitaliy)</div>
-        <div class="item"><div class="dot" style="background: #ff8844;"></div> Arnaut Family</div>
-        <div class="item"><div class="dot" style="background: #44aaff;"></div> Shcherbak/Pasyuk</div>
-        <div class="item"><div class="dot" style="background: #44ff44;"></div> Business Entity</div>
-        <div class="item"><div class="dot" style="background: #aa44ff;"></div> Florida Operations</div>
-        <div class="item"><div class="dot" style="background: #ffff44;"></div> External Contact</div>
-        <div class="item"><div class="dot" style="background: #888;"></div> Location</div>
-        <div class="item"><div class="dot" style="background: #00ffff;"></div> Vendor/Technology</div>
-        <div class="item"><div class="dot" style="background: #ff6600;"></div> Repo Contractor</div>
-        <div class="item"><div class="dot" style="background: #66aa66;"></div> Staff Member</div>
-        <div class="item"><div class="dot" style="background: #ffaaff;"></div> Church/Community</div>
-        <div class="item"><div class="dot" style="background: #ff44ff;"></div> Online Account</div>
-        <div class="item"><div class="dot" style="background: #ff0000;"></div> Data Breach</div>
-        <div class="item"><div class="dot" style="background: #ffcc00;"></div> Evidence (Fraud)</div>
-        <div class="item"><div class="dot" style="background: #4488ff;"></div> Regulatory Agency</div>
-    </div>
-
-    <div id="network"></div>
-
-    <div id="sidebar">
-        <button class="close-btn" onclick="closeSidebar()">&times;</button>
-        <div id="sidebarContent"></div>
-    </div>
-
+    <!-- Scripts -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="vehicles-with-vin.json.js"></script>
+    <script src="network-data.js"></script>
     <script>
-        // Node and Edge Data
-        const nodes = new vis.DataSet([
-            // === PRIMARY TARGET ===
-            { id: 'vitaliy', label: 'VITALIY\nARNAUT', group: 'target',
-              title: 'CEO - Primary Target',
-              data: {
-                  role: 'CEO / Primary Target',
-                  age: '40',
-                  dob: 'January 14, 1985',
-                  phone: '(916) 607-9815',
-                  email: 'va@integrityautoz.com',
-                  address: '6032 Palermo Way, Roseville, CA',
-                  instagram: '@vitaliyarnaut',
-                  okru: 'https://ok.ru/profile/266108263847',
-                  breaches: 'ALIEN TXTBASE, AT&T',
-                  passwords: 'Integrity3655'
-              }},
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 
-            // === ARNAUT PARENTS ===
-            { id: 'mikhail', label: 'Mikhail\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Father / Patriarch',
-                  age: '60',
-                  phone: '(916) 388-4212',
-                  email: 'mykhayloarnaut@yahoo.com',
-                  okru: 'https://ok.ru/profile/185183629945 (298 friends)'
-              }},
-            { id: 'tetyana', label: 'Tetyana\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Mother',
-                  location: 'Sacramento, CA'
-              }},
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
 
-            // === ARNAUT SIBLINGS ===
-            { id: 'irina', label: 'Irina\nKisel', group: 'arnaut',
-              data: {
-                  role: 'Eldest Sibling',
-                  age: '41',
-                  phone: '(916) 224-9243',
-                  location: 'Roseville, CA',
-                  married: 'Kisel family'
-              }},
-            { id: 'vladyslav', label: 'Vladyslav\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Secretary / Corp Admin',
-                  age: '~38',
-                  email: 'vladarnaut@gmail.com',
-                  location: 'Loomis, CA',
-                  instagram: '@vladarnaut',
-                  passwords: '3655Florinrd, sims1905'
-              }},
-            { id: 'oleksandr', label: 'Oleksandr\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Unknown',
-                  age: '38',
-                  dob: 'July 1987',
-                  phone: '(916) 307-2941',
-                  email: 'alexanderarnaut32@gmail.com',
-                  location: 'Sacramento / Tempe, AZ'
-              }},
-            { id: 'yevgen', label: 'Yevgen\nArnaut', group: 'florida',
-              data: {
-                  role: 'DriveHub Owner',
-                  age: '35',
-                  location: 'Florida',
-                  business: 'DriveHub Auto Inc (BANKRUPT - Case 6:25-bk-00594)'
-              }},
-            { id: 'petro', label: 'Petro\nArnaut', group: 'florida',
-              data: {
-                  role: 'DriveHub Employee',
-                  age: '~33',
-                  phone: '(407) 491-8123, (916) 516-3713',
-                  email: 'pparnaut91@gmail.com',
-                  location: 'Orlando, FL',
-                  breaches: 'Prosper, Synthient Stealer, ALIEN TXTBASE'
-              }},
-            { id: 'iolanta', label: 'Iolanta\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Ministry Secretary',
-                  age: '30',
-                  dob: 'October 1994',
-                  phone: '(916) 770-0494',
-                  email: 'iolantakruglyak@gmail.com',
-                  employer: 'Ministry Ray of Hope Sacramento',
-                  married: 'Kruglyak family'
-              }},
-
-            // === UNCLE PETER BRANCH ===
-            { id: 'peter_uncle', label: 'Peter P\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Uncle',
-                  age: '63',
-                  phone: '(916) 799-2996',
-                  email: 'parnaut@excite.com',
-                  location: 'Roseville, CA',
-                  business: 'KUBMO LLC',
-                  okru: 'https://ok.ru/profile/154232335813'
-              }},
-            { id: 'denis', label: 'Denis\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Cousin (Peter\'s son)',
-                  age: '36',
-                  business: 'Revvo Trading LLC',
-                  location: 'Roseville, CA'
-              }},
-            { id: 'david', label: 'David\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Cousin (Peter\'s son)',
-                  business: 'Royal Supply International LLC',
-                  location: 'Roseville, CA'
-              }},
-
-            // === SHCHERBAK FAMILY ===
-            { id: 'vladimir', label: 'Vladimir\nShcherbak', group: 'shcherbak',
-              data: {
-                  role: 'GPS ADMIN + Impera Design Co',
-                  age: '~35',
-                  phone: '(916) 973-8611',
-                  email: 'vladimir@integrityautoz.com',
-                  email2: 'vladimir@imperadesignco.com',
-                  formerAddress: '4777 Bucknell Ct, Sacramento',
-                  currentAddress: 'UNKNOWN (moved Jul 2025)'
-              }},
-            { id: 'vera', label: 'Vera L\nShcherbak', group: 'shcherbak',
-              data: {
-                  role: 'Vladimir\'s Mother (née Pasyuk)',
-                  age: '58',
-                  phone: '(916) 759-6944, (916) 317-9484',
-                  location: 'Sacramento, CA',
-                  note: 'Links Shcherbak to Pasyuk family'
-              }},
-            { id: 'maia', label: 'Maia\nShcherbak', group: 'shcherbak',
-              data: {
-                  role: 'Vladimir\'s Sister',
-                  age: '34',
-                  phone: '(916) 501-9641',
-                  location: 'Rocklin, CA',
-                  note: 'Lived with Vladimir at 4777 Bucknell Ct (2014-2024)'
-              }},
-            { id: 'marina', label: 'Marina\nStefoglo', group: 'shcherbak',
-              data: {
-                  role: 'Vladimir\'s Sister',
-                  age: '36',
-                  email: 'marinastefoglo@gmail.com',
-                  location: 'Sacramento, CA',
-                  married: 'Ilya Stefoglo'
-              }},
-
-            // === PASYUK FAMILY (FLORIDA) ===
-            { id: 'dmitry', label: 'Dmitry\nPasyuk', group: 'florida',
-              data: {
-                  role: 'Prestige Auto Owner (CLOSED)',
-                  age: '41',
-                  phone: '941-408-4199',
-                  email: 'dmitry_pasyuk@yahoo.com',
-                  location: 'North Port, FL',
-                  business: 'Prestige Auto of South Florida',
-                  businessStatus: 'CLOSED (2024)',
-                  flLicense: 'NOT IN DATABASE',
-                  ripoffReport: '2015 - BMW $28K fraud (resolved 2018)',
-                  sunbiz: 'PASYUK DESIGN LLC (active)'
-              }},
-            { id: 'valentina_p', label: 'Valentina\nPasyuk', group: 'shcherbak',
-              data: {
-                  role: 'Pasyuk Family - FL',
-                  age: '61',
-                  location: 'North Port, FL'
-              }},
-            { id: 'sergey_p', label: 'Sergey\nPasyuk', group: 'shcherbak',
-              data: {
-                  role: 'Pasyuk Family - FL',
-                  age: '40',
-                  location: 'North Port, FL'
-              }},
-
-            // === BUSINESSES ===
-            { id: 'integrity', label: 'INTEGRITY\nAUTO SALES', group: 'business',
-              data: {
-                  type: 'Used Car Dealership',
-                  address: '3655 Florin Rd, Sacramento, CA 95823',
-                  phone: '(916) 392-0800',
-                  dmvLicense: '#82235',
-                  bbbRating: 'F (32+ complaints)',
-                  employees: '~11',
-                  revenue: '~$2M annual',
-                  gpsVehicles: '3,193'
-              }},
-            { id: 'lumin', label: 'Lumin\nFisker', group: 'business',
-              data: {
-                  type: 'Luxury Auto Dealer',
-                  address: '12565 Auto Mall Cir, Folsom, CA',
-                  phone: '(916) 415-8205',
-                  inventory: '~93 vehicles',
-                  note: 'Legitimacy front'
-              }},
-            { id: 'impera', label: 'Impera\nDesign Co', group: 'business',
-              data: {
-                  type: 'SHELL COMPANY',
-                  website: 'imperadesignco.com',
-                  owner: 'Vladimir Shcherbak',
-                  pppLoan: '$15,307 (March 2021)',
-                  purpose: 'Invoice pass-through, tax write-offs'
-              }},
-            { id: 'drivehub', label: 'DriveHub\nAuto Inc', group: 'florida',
-              data: {
-                  type: 'Used Car Dealer (FL)',
-                  address: '1300 N Dixie Fwy, New Smyrna Beach, FL',
-                  officers: 'Yevgen Arnaut, Petro Arnaut',
-                  bankruptcy: 'CHAPTER 11 (Case 6:25-bk-00594)',
-                  liabilities: '$1-10M',
-                  bbbRating: 'F (3 unanswered complaints)'
-              }},
-            { id: 'lumin_fl', label: 'Lumin Auto Group\n(Jacksonville FL)', group: 'florida',
-              data: {
-                  type: 'Used Car Dealer (FL) - FAILED',
-                  address: '7721 Blanding Blvd, Jacksonville, FL',
-                  partners: 'Vitaliy Arnaut + Yevgeniy Nesteruk',
-                  withdrawn: 'January 2023',
-                  note: 'Failed FL venture - Nesteruk now disgruntled'
-              }},
-            { id: 'prestige', label: 'Prestige Auto\n(CLOSED)', group: 'florida',
-              data: {
-                  type: 'Used Car Dealer (FL) - CLOSED',
-                  address: '1878 Winslow Ln, North Port, FL',
-                  owner: 'Dmitry Pasyuk',
-                  active: '2012-2024',
-                  bbbRating: 'A+ (historical)',
-                  note: 'Website offline, not in FL license database'
-              }},
-
-            // === KEY EXTERNAL CONTACTS ===
-            { id: 'kristy', label: 'Kristy\nDewit', group: 'external',
-              data: {
-                  role: 'GEICO SIU Investigator (Former)',
-                  currentJob: 'Sentry Insurance - Special Investigator',
-                  geicoTenure: 'Feb 2019 - Jun 2025',
-                  phone: '(916) 471-8407, (916) 207-6749',
-                  email: 'kdewit@geico.com, kristydewit@yahoo.com',
-                  education: 'BS Criminal Justice, CSU Sacramento',
-                  conflict: 'Had REPO access in GPS system',
-              }},
-            { id: 'nesteruk', label: 'Yevgeniy\nNesteruk', group: 'external',
-              data: {
-                  role: 'Disgruntled Partner',
-                  email: 'yevgeniynesteruk@gmail.com',
-                  note: 'Failed FL venture with Arnauts'
-              }},
-            { id: 'anatoliy', label: 'Anatoliy\nArnaut', group: 'arnaut',
-              data: {
-                  role: 'Extended Family',
-                  age: '~48',
-                  phone: '(916) 367-2988',
-                  email: 'arnautflooring@gmail.com',
-                  location: 'Placerville, CA',
-                  business: 'ECO HOMES INC',
-                  vk: 'id235424570'
-              }},
-
-            // === LOCATIONS ===
-            { id: 'sacramento', label: 'Sacramento\nCA', group: 'location',
-              data: { type: 'Primary Operations Hub' }},
-            { id: 'florida', label: 'Florida\nOperations', group: 'location',
-              data: { type: 'FL Pipeline (Now Defunct)', note: 'DriveHub + Prestige Auto both closed' }},
-
-            // === CONNECTED FAMILIES ===
-            { id: 'taushanzhi', label: 'Taushanzhi\nFamily', group: 'external',
-              data: {
-                  role: 'Connected via Marriage',
-                  key: 'Valentina P Taushanzhi (66) - Arnaut aunt',
-                  husband: 'Afanasiy I Taushanzhi (67)',
-                  location: 'Sedalia, MO'
-              }},
-            { id: 'tsiorba', label: 'Tsiorba\nFamily', group: 'external',
-              data: {
-                  role: 'Connected via Anatoliy',
-                  location: 'Fair Oaks / Placerville, CA'
-              }},
-
-            // === TECHNOLOGY / VENDORS ===
-            { id: 'advantagegps', label: 'AdvantageGPS', group: 'vendor',
-              data: {
-                  type: 'GPS Tracking Platform',
-                  website: 'dealer.advantagegps.com',
-                  vulnerability: 'UNAUTHENTICATED API',
-                  exposedEndpoints: '/asset/list, /user/list',
-                  dataExposed: '3,193 vehicles, 29 users, customer PII',
-                  remoteDisable: 'YES (FSTE feature)'
-              }},
-            { id: 'westlake', label: 'Westlake\nFinancial', group: 'vendor',
-              data: {
-                  type: 'Subprime Auto Lender',
-                  cfpbFine: '$44.1M Settlement (2016)',
-                  dojAction: '$700K+ SCRA (2017)',
-                  violations: 'Illegal collection, caller ID spoofing',
-                  relationship: 'Primary financing partner'
-              }},
-
-            // === REPO CONTRACTORS ===
-            { id: 'master_recovery', label: 'Master\nRecovery', group: 'repo',
-              data: {
-                  type: 'Repo Contractor',
-                  owner: 'Francisco Gonzalez',
-                  email: 'master_recovery1601@yahoo.com',
-                  role: 'GPS REPO access',
-                  note: 'External repo company'
-              }},
-            { id: 'luis_flores', label: 'Luis\nFlores', group: 'repo',
-              data: {
-                  role: 'Repo Contractor',
-                  email: 'lflores2468@gmail.com',
-                  gpsRole: 'REPO'
-              }},
-
-            // === STAFF MEMBERS ===
-            { id: 'edwin', label: 'Edwin\nFlores', group: 'staff',
-              data: {
-                  role: 'Staff - GPS Admin',
-                  email: 'edwin@integrityautoz.com',
-                  gpsRole: 'ADMIN'
-              }},
-            { id: 'joe', label: 'Joe\nGonzalez', group: 'staff',
-              data: {
-                  role: 'Staff - GPS Admin',
-                  email: 'joe@integrityautoz.com',
-                  gpsRole: 'ADMIN'
-              }},
-            { id: 'thuraya', label: 'Thuraya\nAl-Janabi', group: 'staff',
-              data: {
-                  role: 'Account Manager',
-                  email: 'thuraya@integrityautoz.com',
-                  gpsRole: 'ACCT_MGR'
-              }},
-            { id: 'monika', label: 'Monika\nFlores', group: 'staff',
-              data: {
-                  role: 'Account Manager',
-                  email: 'monika@integrityautoz.com',
-                  gpsRole: 'ACCT_MGR'
-              }},
-
-            // === COMMUNITY / CHURCH ===
-            { id: 'slavic_trinity', label: 'Slavic Trinity\nChurch', group: 'community',
-              data: {
-                  type: 'Pentecostal Megachurch',
-                  address: '5341 Auburn Blvd, Sacramento',
-                  pastor: 'Victor Vronskiy',
-                  phone: '(916) 334-1205',
-                  established: '1944',
-                  note: 'Community hub for local Slavic population',
-                  services: 'Russian/Ukrainian (English translators)'
-              }},
-            { id: 'ray_of_hope', label: 'Ministry\nRay of Hope', group: 'community',
-              data: {
-                  type: 'Religious Organization',
-                  connection: 'Iolanta Arnaut works as Secretary'
-              }},
-
-            // === NETWORK CONTACTS ===
-            { id: 'pavel_s', label: 'Pavel\nShcherbatyuk', group: 'external',
-              data: {
-                  role: 'Network Contact (NOT family)',
-                  age: '40',
-                  employer: 'Visions in Education',
-                  email: 'pavelgt7@gmail.com, psh@viedu.org',
-                  email2: 'tashkent86@hotmail.com (Uzbekistan!)',
-                  location: 'Sacramento, CA',
-                  connection: 'Via Taushanzhi family'
-              }},
-            { id: 'nikolay_p', label: 'Nikolay\nPasyuk', group: 'shcherbak',
-              data: {
-                  role: 'Vera\'s Husband? Father?',
-                  age: '65',
-                  location: 'Boiling Springs, SC'
-              }},
-            { id: 'mariya_p', label: 'Mariya I\nPasyuk', group: 'shcherbak',
-              data: {
-                  role: 'Pasyuk Family - FL',
-                  age: '64',
-                  location: 'North Port, FL'
-              }},
-
-            // === ADDITIONAL BUSINESSES ===
-            { id: 'ryan_ryan', label: 'Ryan & Ryan\nInc', group: 'business',
-              data: {
-                  type: 'Auto Dealer',
-                  owner: 'Yevgen Arnaut',
-                  license: '#83285?'
-              }},
-            { id: 'kubmo', label: 'KUBMO\nLLC', group: 'business',
-              data: {
-                  type: 'Business Entity',
-                  owner: 'Peter P Arnaut (Uncle)',
-                  location: 'Roseville, CA'
-              }},
-            { id: 'revvo', label: 'Revvo\nTrading LLC', group: 'business',
-              data: {
-                  type: 'Trading Company',
-                  owner: 'Denis Arnaut',
-                  location: 'Roseville, CA'
-              }},
-            { id: 'royal_supply', label: 'Royal Supply\nIntl LLC', group: 'business',
-              data: {
-                  type: 'Supply Company',
-                  owner: 'David Arnaut',
-                  location: 'Roseville, CA'
-              }},
-            { id: 'eco_homes', label: 'ECO HOMES\nINC', group: 'business',
-              data: {
-                  type: 'Home Services',
-                  owner: 'Anatoliy Arnaut',
-                  location: 'Placerville, CA'
-              }},
-            { id: 'pasyuk_design', label: 'PASYUK\nDESIGN LLC', group: 'business',
-              data: {
-                  type: 'Design Company',
-                  owner: 'Dmitry Pasyuk',
-                  address: '4313 La Rosa Ave, North Port, FL',
-                  ein: '93-2112415',
-                  filed: '06/28/2023'
-              }},
-
-            // === ONLINE ACCOUNTS ===
-            { id: 'ebay_vav', label: 'eBay\nvavautosales', group: 'online',
-              data: {
-                  type: 'eBay Account',
-                  username: 'vavautosales',
-                  memberSince: 'January 2010',
-                  transactions: '3,662',
-                  role: 'BUYER (parts/vehicles sourcing)',
-                  phone: '(916) 662-4283',
-                  email: 'integrity.shop@yahoo.com',
-                  breaches: '5 confirmed',
-                  lastActivity: 'Dormant (0 in 12 months)'
-              }},
-            { id: 'amazon_seller', label: 'Amazon\nSeller', group: 'online',
-              data: {
-                  type: 'Amazon Marketplace',
-                  owner: 'Vladyslav Arnaut',
-                  sellerId: '3xr83hknw7ssbkr',
-                  address: '3655 Florin Rd'
-              }},
-
-            // === ADDITIONAL LOCATIONS ===
-            { id: 'auburn_blvd', label: 'Auburn Blvd\nCorridor', group: 'location',
-              data: {
-                  type: 'Slavic Business Corridor',
-                  range: '4777-5341 Auburn Blvd',
-                  includes: 'Integrity Auto 2nd location, Slavic Trinity Church',
-                  note: 'Strategic placement near immigrant community'
-              }},
-            { id: 'florin_rd', label: '3655 Florin Rd\nHQ', group: 'location',
-              data: {
-                  type: 'Primary Dealership',
-                  tenant: 'Integrity Auto Sales',
-                  previousTenants: 'Sacramento Hyundai, Senator Hyundai'
-              }},
-
-            // === BREACH / COMPROMISE SOURCES ===
-            { id: 'alien_txtbase', label: 'ALIEN\nTXTBASE', group: 'breach',
-              data: {
-                  type: 'Stealer Log Breach',
-                  date: 'February 2025',
-                  records: '284M',
-                  dataExposed: 'Emails, PASSWORDS',
-                  affectedAccounts: 'va@, vladarnaut@, pparnaut91@'
-              }},
-            { id: 'att_breach', label: 'AT&T\nBreach', group: 'breach',
-              data: {
-                  type: 'Telecom Data Breach',
-                  dataExposed: 'Phone, Address, Account info',
-                  affectedAccounts: 'lg.integrityauto@gmail.com, Vladimir Shcherbak'
-              }},
-            { id: 'prosper_breach', label: 'Prosper\nBreach', group: 'breach',
-              data: {
-                  type: 'Financial Services Breach',
-                  date: 'September 2025',
-                  records: '17.6M',
-                  dataExposed: 'DOB, Address, Gov IDs, Credit, Income, Employment',
-                  affectedAccounts: 'pparnaut91@gmail.com (Petro)'
-              }},
-
-            // === ADDITIONAL REPO CONTRACTORS ===
-            { id: 'sergey_k', label: 'Sergey\nKrasnikov', group: 'repo',
-              data: {
-                  role: 'Repo Contractor (Slavic)',
-                  email: 'sergteam66@gmail.com',
-                  phone: '(916) 642-3735',
-                  location: 'Rocklin, CA',
-                  note: 'Eastern European heritage, trusted network'
-              }},
-            { id: 'rogelio_a', label: 'Rogelio\nAlvarado', group: 'repo',
-              data: {
-                  role: 'Repo Contractor',
-                  email: 'alvaradohndz24@gmail.com',
-                  phone: '(209) 641-2427',
-                  location: 'Stockton, CA',
-                  coverage: 'San Joaquin Valley'
-              }},
-            { id: 'joseph_c', label: 'Joseph\nCatello', group: 'repo',
-              data: {
-                  role: 'Repo Contractor + Tile Business',
-                  email: 'joecatello@gmail.com',
-                  phone: '(916) 825-8557',
-                  location: 'Rancho Cordova, CA',
-                  business: 'Joe Catello Tile Inc',
-                  note: 'Dual income - tile + repo'
-              }},
-            { id: 'luis_deleon', label: 'Luis\nDe Leon', group: 'repo',
-              data: {
-                  role: 'Repo Contractor',
-                  email: 'luisjrdeleon@yahoo.com',
-                  phone: '(925) 997-9517',
-                  location: 'East Bay (Contra Costa)',
-                  note: 'Yahoo email = likely breached (2013)'
-              }},
-            { id: 'ryan_oneil', label: 'Ryan\nONeil', group: 'repo',
-              data: {
-                  role: 'Repo Contractor',
-                  email: 'roccourt@gmail.com',
-                  phone: '(831) 345-0979',
-                  location: 'Monterey Bay',
-                  coverage: 'Monterey, Santa Cruz, Salinas'
-              }},
-            { id: 'narinder_s', label: 'Narinder\nSingh', group: 'repo',
-              data: {
-                  role: 'Repo Contractor + Business Broker',
-                  email: 'narinder17maan@gmail.com',
-                  phone: '(916) 588-8073',
-                  location: 'Sacramento, CA',
-                  business: 'Nationwide Homes & Lending',
-                  dreLicense: '#01719546'
-              }},
-
-            // === EVIDENCE / FRAUD ===
-            { id: 'ferrari_812', label: 'Ferrari 812\nFlood Car', group: 'evidence',
-              data: {
-                  type: 'CONFIRMED FLOOD VEHICLE',
-                  vin: 'ZFF83CLA3K0247114',
-                  year: '2019',
-                  msrp: '~$340,000',
-                  lossDate: 'September 18, 2022',
-                  cause: 'Hurricane Ian FLOOD',
-                  source: 'Copart Miami South (Dec 2022)',
-                  nicbStatus: 'SALVAGE RECORD CONFIRMED'
-              }},
-            { id: 'copart', label: 'Copart\nMiami South', group: 'vendor',
-              data: {
-                  type: 'Salvage Auction',
-                  role: 'Flood vehicle sourcing',
-                  location: 'Miami, FL',
-                  note: 'Where Ferrari 812 was purchased'
-              }},
-
-            // === REGULATORY AGENCIES ===
-            { id: 'nicb', label: 'NICB', group: 'agency',
-              data: {
-                  type: 'National Insurance Crime Bureau',
-                  role: 'VINCheck database',
-                  finding: 'Confirmed Ferrari 812 flood status',
-                  website: 'nicb.org'
-              }},
-            { id: 'ca_dmv', label: 'CA DMV', group: 'agency',
-              data: {
-                  type: 'Regulatory Agency',
-                  role: 'Dealer licensing',
-                  integrityLicense: '#82235',
-                  pendingAction: 'Misdemeanor investigation'
-              }},
-            { id: 'bsis', label: 'CA BSIS', group: 'agency',
-              data: {
-                  type: 'Bureau of Security & Investigative Services',
-                  role: 'Repo agent licensing',
-                  note: 'No contractors verified licensed'
-              }},
-
-            // === ADDITIONAL BREACHES ===
-            { id: 'synthient', label: 'Synthient\nStealer', group: 'breach',
-              data: {
-                  type: 'Stealer Log Breach',
-                  date: '2025',
-                  records: '183M',
-                  dataExposed: 'Email, PASSWORDS',
-                  affectedAccounts: 'pparnaut91@gmail.com'
-              }},
-            { id: 'houzz', label: 'Houzz.com\nBreach', group: 'breach',
-              data: {
-                  type: 'Home Design Platform Breach',
-                  date: '2019',
-                  dataExposed: 'Email, passwords, IP, location',
-                  affectedAccounts: 'Vitaliy Arnaut'
-              }},
-            { id: 'pdl_breach', label: 'PDL Data\nEnrichment', group: 'breach',
-              data: {
-                  type: 'Data Enrichment Breach',
-                  date: 'October 2019',
-                  records: '600M+',
-                  dataExposed: 'Full PII, employment, social profiles',
-                  note: 'master_recovery1601@yahoo.com exposed'
-              }}
-        ]);
-
-        // Edges (Relationships)
-        const edges = new vis.DataSet([
-            // Family Structure
-            { from: 'mikhail', to: 'tetyana', label: 'married', color: '#ff8844' },
-            { from: 'mikhail', to: 'vitaliy', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'vladyslav', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'oleksandr', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'yevgen', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'petro', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'iolanta', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'irina', label: 'father', color: '#ff8844' },
-            { from: 'mikhail', to: 'peter_uncle', label: 'brother', color: '#ff8844', dashes: true },
-
-            // Uncle Peter's branch
-            { from: 'peter_uncle', to: 'denis', label: 'father', color: '#ff8844' },
-            { from: 'peter_uncle', to: 'david', label: 'father', color: '#ff8844' },
-
-            // Sibling relationships
-            { from: 'vitaliy', to: 'vladyslav', label: 'brother', color: '#ff8844', dashes: true },
-            { from: 'vitaliy', to: 'yevgen', label: 'brother', color: '#ff8844', dashes: true },
-            { from: 'yevgen', to: 'petro', label: 'brother', color: '#ff8844', dashes: true },
-
-            // Business ownership
-            { from: 'vitaliy', to: 'integrity', label: 'CEO', color: '#44ff44', width: 3 },
-            { from: 'vitaliy', to: 'lumin', label: 'Partner', color: '#44ff44' },
-            { from: 'vladyslav', to: 'integrity', label: 'Secretary', color: '#44ff44' },
-            { from: 'yevgen', to: 'drivehub', label: 'Owner', color: '#aa44ff' },
-            { from: 'petro', to: 'drivehub', label: 'Employee', color: '#aa44ff' },
-            { from: 'vladimir', to: 'impera', label: 'Owner', color: '#44ff44' },
-            { from: 'impera', to: 'integrity', label: 'Shell for', color: '#44ff44', dashes: true },
-            { from: 'impera', to: 'lumin', label: 'Created', color: '#44ff44', dashes: true },
-            { from: 'dmitry', to: 'prestige', label: 'Owner', color: '#aa44ff' },
-
-            // GPS System Access
-            { from: 'vladimir', to: 'integrity', label: 'GPS ADMIN', color: '#00ffff', width: 2 },
-            { from: 'kristy', to: 'integrity', label: 'GPS REPO', color: '#ffff00', width: 2 },
-            { from: 'petro', to: 'integrity', label: 'GPS REPO', color: '#ffff00' },
-            { from: 'vladyslav', to: 'integrity', label: 'GPS REPO', color: '#ffff00' },
-
-            // Shcherbak Family
-            { from: 'vera', to: 'vladimir', label: 'mother', color: '#44aaff' },
-            { from: 'vera', to: 'maia', label: 'mother', color: '#44aaff' },
-            { from: 'vera', to: 'marina', label: 'mother', color: '#44aaff' },
-            { from: 'vladimir', to: 'maia', label: 'sibling', color: '#44aaff', dashes: true },
-            { from: 'vladimir', to: 'marina', label: 'sibling', color: '#44aaff', dashes: true },
-
-            // Pasyuk-Shcherbak Connection
-            { from: 'vera', to: 'dmitry', label: 'relative (Pasyuk)', color: '#44aaff', dashes: true },
-            { from: 'dmitry', to: 'valentina_p', label: 'relative', color: '#44aaff', dashes: true },
-            { from: 'dmitry', to: 'sergey_p', label: 'relative', color: '#44aaff', dashes: true },
-
-            // FL Pipeline
-            { from: 'drivehub', to: 'florida', label: 'location', color: '#888' },
-            { from: 'prestige', to: 'florida', label: 'location', color: '#888' },
-            { from: 'drivehub', to: 'integrity', label: 'FL PIPELINE', color: '#ff4444', width: 2, dashes: [5,5] },
-            { from: 'prestige', to: 'integrity', label: 'HISTORICAL', color: '#888', dashes: [5,5] },
-
-            // Sacramento Hub
-            { from: 'integrity', to: 'sacramento', label: 'HQ', color: '#888' },
-            { from: 'lumin', to: 'sacramento', label: 'location', color: '#888' },
-
-            // External connections
-            { from: 'kristy', to: 'integrity', label: 'CONFLICT', color: '#ff4444', width: 2 },
-            { from: 'nesteruk', to: 'drivehub', label: 'former partner', color: '#888', dashes: true },
-            { from: 'vitaliy', to: 'lumin_fl', label: 'Partner', color: '#aa44ff' },
-            { from: 'nesteruk', to: 'lumin_fl', label: 'Partner', color: '#aa44ff' },
-            { from: 'lumin_fl', to: 'florida', label: 'location', color: '#888' },
-            { from: 'lumin_fl', to: 'integrity', label: 'FL PIPELINE', color: '#ff4444', dashes: [5,5] },
-            { from: 'taushanzhi', to: 'mikhail', label: 'in-law', color: '#888', dashes: true },
-            { from: 'anatoliy', to: 'tsiorba', label: 'connected', color: '#888', dashes: true },
-            { from: 'anatoliy', to: 'mikhail', label: 'relative', color: '#ff8844', dashes: true },
-
-            // === NEW EDGES ===
-
-            // AdvantageGPS connections
-            { from: 'integrity', to: 'advantagegps', label: 'USES', color: '#00ffff', width: 2 },
-            { from: 'advantagegps', to: 'vladimir', label: 'ADMIN access', color: '#00ffff' },
-            { from: 'advantagegps', to: 'edwin', label: 'ADMIN access', color: '#00ffff' },
-            { from: 'advantagegps', to: 'joe', label: 'ADMIN access', color: '#00ffff' },
-            { from: 'advantagegps', to: 'kristy', label: 'REPO access', color: '#ffff00' },
-            { from: 'advantagegps', to: 'master_recovery', label: 'REPO access', color: '#ffff00' },
-
-            // Westlake Financial
-            { from: 'integrity', to: 'westlake', label: 'FINANCING', color: '#ff4444', width: 2 },
-
-            // Repo contractors
-            { from: 'master_recovery', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'luis_flores', to: 'integrity', label: 'contracts', color: '#ff6600' },
-
-            // Staff connections
-            { from: 'edwin', to: 'integrity', label: 'employee', color: '#888' },
-            { from: 'joe', to: 'integrity', label: 'employee', color: '#888' },
-            { from: 'thuraya', to: 'integrity', label: 'employee', color: '#888' },
-            { from: 'monika', to: 'integrity', label: 'employee', color: '#888' },
-
-            // Church/Community
-            { from: 'slavic_trinity', to: 'auburn_blvd', label: 'location', color: '#888' },
-            { from: 'integrity', to: 'auburn_blvd', label: '2nd location', color: '#888', dashes: true },
-            { from: 'iolanta', to: 'ray_of_hope', label: 'Secretary', color: '#888' },
-
-            // Network contacts
-            { from: 'pavel_s', to: 'taushanzhi', label: 'associate', color: '#888', dashes: true },
-            { from: 'nikolay_p', to: 'vera', label: 'husband?', color: '#44aaff', dashes: true },
-            { from: 'dmitry', to: 'mariya_p', label: 'relative', color: '#44aaff', dashes: true },
-
-            // Business ownership
-            { from: 'peter_uncle', to: 'kubmo', label: 'Owner', color: '#44ff44' },
-            { from: 'denis', to: 'revvo', label: 'Owner', color: '#44ff44' },
-            { from: 'david', to: 'royal_supply', label: 'Owner', color: '#44ff44' },
-            { from: 'anatoliy', to: 'eco_homes', label: 'Owner', color: '#44ff44' },
-            { from: 'yevgen', to: 'ryan_ryan', label: 'Owner', color: '#44ff44' },
-            { from: 'dmitry', to: 'pasyuk_design', label: 'Owner', color: '#44ff44' },
-
-            // Online accounts
-            { from: 'vitaliy', to: 'ebay_vav', label: 'operates', color: '#ff44ff' },
-            { from: 'vladyslav', to: 'amazon_seller', label: 'operates', color: '#ff44ff' },
-
-            // Location connections
-            { from: 'integrity', to: 'florin_rd', label: 'HQ', color: '#888' },
-
-            // Breach connections
-            { from: 'vitaliy', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'vladyslav', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'petro', to: 'alien_txtbase', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'petro', to: 'prosper_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'vladimir', to: 'att_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'vitaliy', to: 'att_breach', label: 'EXPOSED', color: '#ff0000', dashes: true },
-
-            // === NEW REPO CONTRACTOR EDGES ===
-            { from: 'sergey_k', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'sergey_k', to: 'advantagegps', label: 'REPO access', color: '#ffff00' },
-            { from: 'rogelio_a', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'joseph_c', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'luis_deleon', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'ryan_oneil', to: 'integrity', label: 'contracts', color: '#ff6600' },
-            { from: 'narinder_s', to: 'integrity', label: 'contracts', color: '#ff6600' },
-
-            // === FERRARI FLOOD CAR EVIDENCE ===
-            { from: 'ferrari_812', to: 'lumin', label: 'tracked in GPS', color: '#ff0000', width: 2 },
-            { from: 'ferrari_812', to: 'copart', label: 'purchased from', color: '#ff0000' },
-            { from: 'ferrari_812', to: 'nicb', label: 'VERIFIED FLOOD', color: '#ff0000', width: 2 },
-            { from: 'copart', to: 'florida', label: 'location', color: '#888' },
-
-            // === REGULATORY EDGES ===
-            { from: 'integrity', to: 'ca_dmv', label: 'License #82235', color: '#888' },
-            { from: 'ca_dmv', to: 'integrity', label: 'INVESTIGATION', color: '#ff0000', dashes: true },
-            { from: 'bsis', to: 'master_recovery', label: 'should license', color: '#888', dashes: true },
-
-            // === ADDITIONAL BREACH EDGES ===
-            { from: 'petro', to: 'synthient', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'vitaliy', to: 'houzz', label: 'EXPOSED', color: '#ff0000', dashes: true },
-            { from: 'master_recovery', to: 'pdl_breach', label: 'EXPOSED', color: '#ff0000', dashes: true }
-        ]);
-
-        // Network options
-        const options = {
-            nodes: {
-                shape: 'dot',
-                size: 25,
-                font: {
-                    size: 12,
-                    color: '#ffffff',
-                    face: 'Segoe UI'
-                },
-                borderWidth: 2,
-                shadow: true
-            },
-            edges: {
-                width: 1,
-                font: {
-                    size: 10,
-                    color: '#888',
-                    strokeWidth: 0
-                },
-                arrows: {
-                    to: { enabled: true, scaleFactor: 0.5 }
-                },
-                smooth: {
-                    type: 'continuous'
+            // Initialize or refresh map if switching to vehicles tab
+            if (tabName === 'vehicles') {
+                if (!window.vehicleMapInitialized) {
+                    setTimeout(initVehicleMap, 100);
+                } else if (vehicleMap) {
+                    setTimeout(() => vehicleMap.invalidateSize(), 100);
                 }
-            },
-            groups: {
-                target: { color: { background: '#ff4444', border: '#ff0000' }, size: 40 },
-                arnaut: { color: { background: '#ff8844', border: '#ff6600' } },
-                shcherbak: { color: { background: '#44aaff', border: '#0088ff' } },
-                business: { color: { background: '#44ff44', border: '#00ff00' }, shape: 'box' },
-                florida: { color: { background: '#aa44ff', border: '#8800ff' } },
-                external: { color: { background: '#ffff44', border: '#ffff00' } },
-                location: { color: { background: '#888888', border: '#666666' }, shape: 'diamond' },
-                vendor: { color: { background: '#00ffff', border: '#00cccc' }, shape: 'hexagon' },
-                repo: { color: { background: '#ff6600', border: '#cc5500' } },
-                staff: { color: { background: '#66aa66', border: '#448844' } },
-                community: { color: { background: '#ffaaff', border: '#ff88ff' }, shape: 'triangle' },
-                online: { color: { background: '#ff44ff', border: '#cc00cc' }, shape: 'star' },
-                breach: { color: { background: '#ff0000', border: '#cc0000' }, shape: 'star', size: 30 },
-                evidence: { color: { background: '#ffcc00', border: '#cc9900' }, shape: 'diamond', size: 35 },
-                agency: { color: { background: '#4488ff', border: '#2266dd' }, shape: 'square' }
-            },
-            physics: {
-                stabilization: { iterations: 200 },
-                barnesHut: {
-                    gravitationalConstant: -3000,
-                    springLength: 150,
-                    springConstant: 0.02
+            }
+        }
+
+        // Network graph
+        let networkGraph, networkNodes, networkEdges;
+
+        function initNetwork() {
+            const container = document.getElementById('network-graph');
+
+            networkNodes = new vis.DataSet(nodes);
+            networkEdges = new vis.DataSet(edges);
+
+            const options = {
+                nodes: {
+                    font: { color: '#ffffff', size: 12 },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    font: { color: '#888888', size: 10, strokeWidth: 0 },
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                    smooth: { type: 'continuous' }
+                },
+                groups: {
+                    target: { color: { background: '#ff4444', border: '#ff0000' }, size: 40 },
+                    arnaut: { color: { background: '#ff8844', border: '#ff6600' } },
+                    shcherbak: { color: { background: '#44aaff', border: '#0088ff' } },
+                    business: { color: { background: '#44ff44', border: '#00ff00' }, shape: 'box' },
+                    florida: { color: { background: '#aa44ff', border: '#8800ff' } },
+                    cheban: { color: { background: '#ff9900', border: '#cc7700' } },
+                    external: { color: { background: '#ffff44', border: '#ffff00' } },
+                    location: { color: { background: '#888888', border: '#666666' }, shape: 'diamond' },
+                    vendor: { color: { background: '#00ffff', border: '#00cccc' }, shape: 'hexagon' },
+                    repo: { color: { background: '#ff6600', border: '#cc5500' } },
+                    staff: { color: { background: '#66aa66', border: '#448844' } },
+                    community: { color: { background: '#ffaaff', border: '#ff88ff' }, shape: 'triangle' },
+                    online: { color: { background: '#ff44ff', border: '#cc00cc' }, shape: 'star' },
+                    breach: { color: { background: '#ff0000', border: '#cc0000' }, shape: 'star', size: 30 },
+                    evidence: { color: { background: '#ffcc00', border: '#cc9900' }, shape: 'diamond', size: 35 },
+                    agency: { color: { background: '#4488ff', border: '#2266dd' }, shape: 'square' },
+                    vehicle: { color: { background: '#33cc33', border: '#229922' }, shape: 'ellipse', size: 20 }
+                },
+                physics: {
+                    stabilization: { iterations: 200 },
+                    barnesHut: { gravitationalConstant: -3000, springLength: 150 }
+                },
+                interaction: { hover: true, tooltipDelay: 200 }
+            };
+
+            networkGraph = new vis.Network(container, { nodes: networkNodes, edges: networkEdges }, options);
+
+            networkGraph.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = networkNodes.get(nodeId);
+                    showDetail(node);
                 }
-            },
-            interaction: {
-                hover: true,
-                tooltipDelay: 200
-            }
-        };
+            });
 
-        // Create network
-        const container = document.getElementById('network');
-        const data = { nodes: nodes, edges: edges };
-        const network = new vis.Network(container, data, options);
+            document.getElementById('network-count').textContent = nodes.length;
+        }
 
-        // Update stats
-        document.getElementById('nodeCount').textContent = nodes.length;
-        document.getElementById('edgeCount').textContent = edges.length;
-        document.getElementById('breachedCount').textContent =
-            nodes.get().filter(n => n.data && n.data.breaches).length;
+        function showDetail(node) {
+            const panel = document.getElementById('detail-panel');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
 
-        // Click handler for sidebar
-        network.on('click', function(params) {
-            if (params.nodes.length > 0) {
-                const nodeId = params.nodes[0];
-                const node = nodes.get(nodeId);
-                showSidebar(node);
-            }
-        });
+            title.textContent = node.label.replace(/\n/g, ' ');
 
-        function showSidebar(node) {
-            const sidebar = document.getElementById('sidebar');
-            const content = document.getElementById('sidebarContent');
-
-            let html = `<h2>${node.label.replace('\n', ' ')}</h2>`;
-
+            let html = '';
             if (node.data) {
                 for (const [key, value] of Object.entries(node.data)) {
                     let valueClass = '';
-                    if (key === 'breaches' || key === 'passwords') valueClass = 'compromised';
-                    else if (key === 'bankruptcy') valueClass = 'warning';
+                    let displayValue = value;
+
+                    if (key === 'breaches' || key === 'passwords') valueClass = 'warning';
+                    if (key === 'map' || key === 'okru' || key === 'website') {
+                        displayValue = `<a href="${value}" target="_blank">${value}</a>`;
+                    }
+                    if (key === 'coordinates' && node.data.map) {
+                        displayValue = `<a href="${node.data.map}" target="_blank">${value}</a>`;
+                    }
+
                     html += `
-                        <div class="field">
-                            <div class="label">${key.replace(/([A-Z])/g, ' $1').trim()}</div>
-                            <div class="value ${valueClass}">${value}</div>
+                        <div class="detail-field">
+                            <div class="detail-label">${key}</div>
+                            <div class="detail-value ${valueClass}">${displayValue}</div>
                         </div>
                     `;
                 }
             }
 
             content.innerHTML = html;
-            sidebar.classList.add('open');
+            panel.classList.add('open');
         }
 
-        function closeSidebar() {
-            document.getElementById('sidebar').classList.remove('open');
+        function closeDetail() {
+            document.getElementById('detail-panel').classList.remove('open');
         }
 
-        function filterByGroup(group) {
+        function filterNetwork(group) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+
             if (group === 'all') {
-                nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
-                edges.forEach(edge => edges.update({ id: edge.id, hidden: false }));
-            } else if (group === 'breached') {
-                nodes.forEach(node => {
-                    const hasBreaches = node.data && node.data.breaches;
-                    nodes.update({ id: node.id, hidden: !hasBreaches });
-                });
+                networkNodes.forEach(n => networkNodes.update({ id: n.id, hidden: false }));
             } else {
-                nodes.forEach(node => {
-                    const show = node.group === group ||
-                        (group === 'florida' && (node.group === 'florida' || node.id === 'prestige' || node.id === 'drivehub'));
-                    nodes.update({ id: node.id, hidden: !show });
+                networkNodes.forEach(n => {
+                    networkNodes.update({ id: n.id, hidden: n.group !== group });
                 });
             }
         }
 
-        function resetView() {
-            nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
-            edges.forEach(edge => edges.update({ id: edge.id, hidden: false }));
-            network.fit();
+        // Vehicle map
+        let vehicleMap, vehicleMarkers, allVehicleMarkers = [];
+        const luxuryBrands = ['FERRARI', 'MASERATI', 'PORSCHE', 'TESLA', 'BMW', 'MERCEDES-BENZ', 'AUDI', 'LAND ROVER', 'LEXUS', 'INFINITI'];
+        const floodVins = ['ZFF83CLA3K0247114'];
+
+        function initVehicleMap() {
+            vehicleMap = L.map('vehicle-map').setView([38.5816, -121.4944], 7);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(vehicleMap);
+
+            vehicleMarkers = L.markerClusterGroup({ maxClusterRadius: 50 });
+
+            let luxuryCount = 0, starterCount = 0;
+
+            vehicles.forEach(v => {
+                if (!v.latitude || v.latitude === 0) return;
+
+                const isLuxury = luxuryBrands.includes((v.make || '').toUpperCase());
+                const isFlood = floodVins.includes(v.vin);
+                const hasStarter = (v.features || '').includes('FSTE');
+                const isOutOfState = v.latitude < 32.5 || v.latitude > 42 || v.longitude < -124.5 || v.longitude > -114;
+
+                if (isLuxury) luxuryCount++;
+                if (hasStarter) starterCount++;
+
+                let iconColor = '#3388ff';
+                if (isFlood) iconColor = '#ff0000';
+                else if (isLuxury) iconColor = '#ffd700';
+                else if (isOutOfState) iconColor = '#ff8800';
+
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="width:10px;height:10px;background:${iconColor};border:2px solid #fff;border-radius:50%;"></div>`,
+                    iconSize: [10, 10]
+                });
+
+                const marker = L.marker([v.latitude, v.longitude], { icon });
+
+                let features = '';
+                if (v.features) {
+                    v.features.split('|').forEach(f => {
+                        if (f === 'FSTE') features += '<span class="feature-tag feature-fste">STARTER KILL</span>';
+                        else if (f === 'FLIV') features += '<span class="feature-tag feature-fliv">LIVE</span>';
+                    });
+                }
+
+                marker.bindPopup(`
+                    <div class="vehicle-popup">
+                        <h3>${v.year || ''} ${v.make || 'Unknown'} ${v.model || ''}</h3>
+                        ${isFlood ? '<div class="flood-warning">FLOOD DAMAGE CONFIRMED</div>' : ''}
+                        <div class="field"><span class="label">VIN:</span> <span class="vin">${v.vin}</span></div>
+                        ${v.customerName ? `<div class="field"><span class="label">Customer:</span> ${v.customerName}</div>` : ''}
+                        <div class="field"><span class="label">Address:</span> ${v.address || 'Unknown'}</div>
+                        ${features ? `<div class="features">${features}</div>` : ''}
+                        <a class="osm-link" href="https://www.openstreetmap.org/?mlat=${v.latitude}&mlon=${v.longitude}&zoom=17" target="_blank">View on OpenStreetMap</a>
+                    </div>
+                `);
+
+                marker.vehicleData = v;
+                marker.isLuxury = isLuxury;
+                marker.isFlood = isFlood;
+                marker.hasStarter = hasStarter;
+                marker.isOutOfState = isOutOfState;
+
+                allVehicleMarkers.push(marker);
+                vehicleMarkers.addLayer(marker);
+            });
+
+            vehicleMap.addLayer(vehicleMarkers);
+
+            document.getElementById('stat-total').textContent = vehicles.length;
+            document.getElementById('stat-vin').textContent = vehicles.filter(v => v.vin).length;
+            document.getElementById('stat-luxury').textContent = luxuryCount;
+            document.getElementById('stat-starter').textContent = starterCount;
+            document.getElementById('vehicles-count').textContent = vehicles.length;
+
+            window.vehicleMapInitialized = true;
         }
 
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase();
-            if (query.length < 2) {
-                nodes.forEach(node => nodes.update({ id: node.id, hidden: false }));
-                return;
-            }
+        function filterVehicles(filter, btn) {
+            document.querySelectorAll('.vehicle-filter').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
 
-            nodes.forEach(node => {
-                const label = node.label.toLowerCase();
-                const dataStr = node.data ? JSON.stringify(node.data).toLowerCase() : '';
-                const match = label.includes(query) || dataStr.includes(query);
-                nodes.update({ id: node.id, hidden: !match });
+            vehicleMarkers.clearLayers();
+            allVehicleMarkers.forEach(m => {
+                let show = filter === 'all' ||
+                    (filter === 'luxury' && m.isLuxury) ||
+                    (filter === 'flood' && m.isFlood) ||
+                    (filter === 'starter' && m.hasStarter) ||
+                    (filter === 'outofstate' && m.isOutOfState);
+                if (show) vehicleMarkers.addLayer(m);
+            });
+        }
+
+        document.getElementById('vehicle-search').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            vehicleMarkers.clearLayers();
+            allVehicleMarkers.forEach(m => {
+                const v = m.vehicleData;
+                const str = `${v.vin} ${v.make} ${v.model} ${v.customerName} ${v.address}`.toLowerCase();
+                if (q === '' || str.includes(q)) vehicleMarkers.addLayer(m);
             });
         });
 
-        // Keyboard shortcut to close sidebar
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeSidebar();
+        // Network search
+        document.getElementById('network-search').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            networkNodes.forEach(n => {
+                const str = `${n.label} ${JSON.stringify(n.data || {})}`.toLowerCase();
+                networkNodes.update({ id: n.id, hidden: q !== '' && !str.includes(q) });
+            });
         });
+
+        // Initialize
+        initNetwork();
     </script>
 </body>
 </html>
-                               
+                                                     
